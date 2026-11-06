@@ -106,14 +106,6 @@ fun ForgotPasswordStep1Screen(
                         lineHeight = 18.sp
                     )
 
-                    // Verification Method Selector
-                    Text(
-                        text = "Selecciona el método de verificación",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = PrimaryLight
-                    )
-
                     // Phone / Email Input
                     Column {
                         Text(
