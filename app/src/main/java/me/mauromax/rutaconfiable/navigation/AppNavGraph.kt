@@ -15,6 +15,8 @@ sealed class Screen(val route: String) {
     object ForgotPasswordStep1 : Screen("forgot_password_step_1")
     object ForgotPasswordStep2 : Screen("forgot_password_step_2")
 
+    object PaymentMethods : Screen("payment_methods")
+
     object Registration : Screen("registration/{role}") {
         fun createRoute(role: String = "driver") = "registration/$role"
     }
@@ -115,6 +117,9 @@ fun AppNavGraph(
                 onLoginClick = {
                     navController.navigate(Screen.Login.route)
                 },
+                onAddPaymentClick = {
+                    navController.navigate(Screen.PaymentMethods.route)
+                },
                 onRegistrationSubmitted = { submittedRole ->
                     val roleParam = if (submittedRole == RegistrationRole.CLIENT) "client" else "driver"
                     navController.navigate(Screen.VerificationPending.createRoute(roleParam)) {
@@ -124,6 +129,11 @@ fun AppNavGraph(
                     }
                 }
             )
+        }
+
+        // Payment Methods Screen (desde el registro de cliente)
+        composable(route = Screen.PaymentMethods.route) {
+            PaymentMethodsScreen(onBackClick = { navController.popBackStack() })
         }
 
         // 6. Verification Pending Screen
@@ -168,9 +178,6 @@ fun AppNavGraph(
 
             ProfileScreen(
                 role = role,
-                onBackToPending = {
-                    navController.popBackStack()
-                },
                 onLogout = {
                     navController.navigate(Screen.Welcome.route) {
                         popUpTo(0)

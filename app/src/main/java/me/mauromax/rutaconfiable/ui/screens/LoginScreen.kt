@@ -24,6 +24,10 @@ import androidx.compose.ui.unit.sp
 import me.mauromax.rutaconfiable.ui.components.*
 import me.mauromax.rutaconfiable.ui.theme.*
 
+// Credenciales de demostración (reemplazar por validación contra el backend)
+private val DEMO_USERS = setOf("conductor@rutaconfiable.com", "3109876543")
+private const val DEMO_PASSWORD = "Ruta1234"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
@@ -36,6 +40,7 @@ fun LoginScreen(
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberDevice by remember { mutableStateOf(true) }
+    var loginError by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -123,7 +128,7 @@ fun LoginScreen(
                         )
                         PhoneWithCountrySelectorField(
                             phoneValue = identifier,
-                            onPhoneChange = { identifier = it },
+                            onPhoneChange = { identifier = it; loginError = false },
                             placeholderText = "Ej. 310 987 6543 o usuario@ejemplo.com"
                         )
                     }
@@ -152,7 +157,7 @@ fun LoginScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         PasswordTextField(
                             value = password,
-                            onValueChange = { password = it },
+                            onValueChange = { password = it; loginError = false },
                             label = "Tu clave de acceso",
                             placeholder = "Ingresa tu contraseña"
                         )
@@ -176,9 +181,29 @@ fun LoginScreen(
                     }
 
                     // Submit Action Button
+                    if (loginError) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = ErrorContainer,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "Usuario o contraseña incorrecta",
+                                modifier = Modifier.padding(12.dp),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = OnErrorContainer
+                            )
+                        }
+                    }
+
                     PrimaryButton(
                         text = "Ingresar",
-                        onClick = onLoginSuccess
+                        onClick = {
+                            val valid = identifier.filter { !it.isWhitespace() }.lowercase() in DEMO_USERS &&
+                                    password == DEMO_PASSWORD
+                            if (valid) onLoginSuccess() else loginError = true
+                        }
                     )
                 }
             }

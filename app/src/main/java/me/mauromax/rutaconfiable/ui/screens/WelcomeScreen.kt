@@ -10,15 +10,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AltRoute
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -31,12 +37,55 @@ import me.mauromax.rutaconfiable.R
 import me.mauromax.rutaconfiable.ui.components.*
 import me.mauromax.rutaconfiable.ui.theme.*
 
+private data class BenefitInfo(
+    val title: String,
+    val icon: ImageVector,
+    val description: String,
+    val points: List<String>
+)
+
+private val benefits = listOf(
+    BenefitInfo(
+        "Póliza y SOAT", Icons.Default.Shield,
+        "Cada transportista debe tener sus documentos al día antes de recibir su primer viaje.",
+        listOf(
+            "Verificamos que el SOAT esté vigente y avisamos antes de su vencimiento.",
+            "Revisamos licencia de conducción y datos del vehículo.",
+            "Los conductores sin documentos vigentes no pueden aceptar viajes."
+        )
+    ),
+    BenefitInfo(
+        "Carga Segura", Icons.Default.Inventory2,
+        "Sigue tu mercancía de principio a fin, con información clara en cada etapa.",
+        listOf(
+            "Seguimiento GPS del viaje en tiempo real.",
+            "Inspección de la carga antes de salir, con registro en la hoja de ruta.",
+            "Manifiesto digital con peso, origen y destino acordados."
+        )
+    ),
+    BenefitInfo(
+        "Pago Protegido", Icons.Default.AccountBalanceWallet,
+        "Las tarifas se pactan antes del viaje, así nadie paga ni cobra de más.",
+        listOf(
+            "Tarifa acordada y visible para ambas partes desde el inicio.",
+            "El pago se libera cuando el servicio se completa.",
+            "Comprobante de cada transacción dentro de la app."
+        )
+    )
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WelcomeScreen(
     onNavigateToLogin: () -> Unit = {},
     onNavigateToRegister: () -> Unit = {}
 ) {
+    var selectedBenefit by remember { mutableStateOf<BenefitInfo?>(null) }
+
+    selectedBenefit?.let {
+        BenefitInfoSheet(it, onDismiss = { selectedBenefit = null })
+    }
+
     Scaffold(
         topBar = {
             WelcomeAppTopBar()
@@ -148,21 +197,14 @@ fun WelcomeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                BenefitCard(
-                    title = "Póliza y SOAT",
-                    icon = Icons.Default.Shield,
-                    modifier = Modifier.weight(1f)
-                )
-                BenefitCard(
-                    title = "Carga Segura",
-                    icon = Icons.Default.Inventory2,
-                    modifier = Modifier.weight(1f)
-                )
-                BenefitCard(
-                    title = "Pago Protegido",
-                    icon = Icons.Default.AccountBalanceWallet,
-                    modifier = Modifier.weight(1f)
-                )
+                benefits.forEach { b ->
+                    BenefitCard(
+                        title = b.title,
+                        icon = b.icon,
+                        modifier = Modifier.weight(1f),
+                        onClick = { selectedBenefit = b }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -189,6 +231,45 @@ fun WelcomeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp)
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BenefitInfoSheet(info: BenefitInfo, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Background) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(info.icon, null, tint = Secondary, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = info.title,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryLight,
+                    fontFamily = FontFamily.Serif
+                )
+            }
+            Text(info.description, fontSize = 14.sp, color = Color(0xFF44474D), lineHeight = 20.sp)
+            info.points.forEach { point ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Icon(
+                        Icons.Default.CheckCircle, null,
+                        tint = StatusAvailable,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(point, fontSize = 13.sp, color = PrimaryLight, lineHeight = 18.sp)
+                }
+            }
+            PrimaryButton(text = "Entendido", onClick = onDismiss, trailingIcon = null)
         }
     }
 }

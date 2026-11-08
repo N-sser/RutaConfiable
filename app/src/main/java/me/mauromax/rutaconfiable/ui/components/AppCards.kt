@@ -1,11 +1,13 @@
 package me.mauromax.rutaconfiable.ui.components
 
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -133,13 +135,17 @@ fun VehicleTypeChip(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BenefitCard(
     title: String,
     icon: ImageVector,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     Surface(
+        onClick = { onClick?.invoke() },
+        enabled = onClick != null,
         modifier = modifier,
         color = Color.White,
         shape = RoundedCornerShape(10.dp),
