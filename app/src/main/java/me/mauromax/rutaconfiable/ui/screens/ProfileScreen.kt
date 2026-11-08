@@ -1,6 +1,5 @@
 package me.mauromax.rutaconfiable.ui.screens
 
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,26 +25,38 @@ import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StatusTag
 import me.mauromax.rutaconfiable.ui.theme.*
 
-private data class Trip(
+/** Contadores del perfil. Un usuario nuevo empieza con todo en 0. */
+data class ProfileStats(
+    val active: Int = 0,
+    val inProgress: Int = 0,
+    val completed: Int = 0,
+    val rating: Double = 0.0,
+    val ratingCount: Int = 0
+)
+
+data class NextTrip(
+    val id: String, val leavesIn: String, val from: String, val to: String,
+    val departure: String, val arrival: String, val duration: String, val via: String,
+    val inspection: Float, val vehicle: String, val cargo: String, val seats: String
+)
+
+data class Trip(
     val date: String, val from: String, val to: String,
     val tag: String, val tagBg: Color, val tagFg: Color,
     val price: String, val info: String
 )
 
-private val recentTrips = listOf(
-    Trip("Mañana · 08:00 AM", "Cali, Valle del Cauca", "Armenia, Quindío",
-        "Cupo Libre", StatusAvailableBg, StatusAvailable, "$ 45.000", "Carga disponible: 1.2 Ton"),
-    Trip("Viernes, 24 Oct · 11:00 PM", "Bucaramanga, Santander", "Santa Marta, Magdalena",
-        "Carga Completa", StatusBookedBg, StatusBooked, "$ 850.000", "Flete pactado 10 Ton"),
-    Trip("Sábado, 25 Oct · 05:00 AM", "Pereira, Risaralda", "Manizales, Caldas",
-        "Cupo Libre", StatusAvailableBg, StatusAvailable, "$ 22.000", "Paquetería liviana")
-)
-
 @Composable
 fun ProfileScreen(
     role: RegistrationRole = RegistrationRole.DRIVER,
+    userName: String = "Usuario",
+    stats: ProfileStats = ProfileStats(),
+    nextTrip: NextTrip? = null,
+    trips: List<Trip> = emptyList(),
     onLogout: () -> Unit = {}
 ) {
+    val isDriver = role == RegistrationRole.DRIVER
+
     Scaffold(
         containerColor = Background,
         bottomBar = { DashboardBottomBar() }
@@ -62,12 +74,18 @@ fun ProfileScreen(
                 Icon(Icons.Default.AccountCircle, null, Modifier.size(44.dp), tint = PrimaryLight)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Bienvenido de nuevo", fontSize = 12.sp, color = OnSurfaceVariant)
-                    Text("Carlos Méndez", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                    Text("Bienvenido", fontSize = 12.sp, color = OnSurfaceVariant)
+                    Text(userName, fontSize = 18.sp, fontWeight = FontWeight.Bold,
                         color = PrimaryLight, fontFamily = FontFamily.Serif)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, null, Modifier.size(14.dp), tint = Secondary)
+                        Spacer(Modifier.width(2.dp))
+                        Text("%.1f · %d calificaciones".format(stats.rating, stats.ratingCount),
+                            fontSize = 11.sp, color = OnSurfaceVariant)
+                    }
                 }
                 StatusTag(
-                    text = if (role == RegistrationRole.DRIVER) "Conductor PRO" else "Cliente",
+                    text = if (isDriver) "Conductor" else "Cliente",
                     bgColor = PrimaryLight, textColor = Color.White
                 )
                 IconButton(onClick = onLogout) {
@@ -77,16 +95,18 @@ fun ProfileScreen(
 
             // Resumen
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatCard("Viajes activos", "02", Modifier.weight(1f))
-                StatCard("En curso", "01", Modifier.weight(1f))
-                StatCard("Completados", "18", Modifier.weight(1f))
+                StatCard("Viajes activos", stats.active, Modifier.weight(1f))
+                StatCard("En curso", stats.inProgress, Modifier.weight(1f))
+                StatCard("Completados", stats.completed, Modifier.weight(1f))
             }
 
             // Próximo viaje
             SectionHeader("Próximo Viaje Asignado") {
-                StatusTag("Sale en 45 min", StatusPendingBg, StatusPending)
+                nextTrip?.let { StatusTag(it.leavesIn, StatusPendingBg, StatusPending) }
             }
-            NextTripCard()
+            if (nextTrip != null) NextTripCard(nextTrip)
+            else EmptyState(Icons.Default.LocalShipping,
+                if (isDriver) "Aún no tienes viajes asignados." else "Aún no tienes reservas ni envíos.")
 
             // Acciones rápidas
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -98,9 +118,13 @@ fun ProfileScreen(
 
             // Viajes recientes
             SectionHeader("Viajes Programados Recientes") {
-                Text("Ver todos (6)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                if (trips.isNotEmpty()) {
+                    Text("Ver todos (${trips.size})", fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, color = Secondary)
+                }
             }
-            recentTrips.forEach { TripRow(it) }
+            if (trips.isEmpty()) EmptyState(Icons.Default.Event, "Aún no tienes viajes programados.")
+            else trips.forEach { TripRow(it) }
         }
     }
 }
@@ -117,6 +141,17 @@ private fun AppCard(modifier: Modifier = Modifier, content: @Composable ColumnSc
 }
 
 @Composable
+private fun EmptyState(icon: ImageVector, text: String) {
+    AppCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, null, Modifier.size(28.dp), tint = Outline)
+            Spacer(Modifier.height(6.dp))
+            Text(text, fontSize = 12.sp, color = OnSurfaceVariant, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
 private fun SectionHeader(title: String, trailing: @Composable () -> Unit) {
     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
         Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold,
@@ -126,16 +161,16 @@ private fun SectionHeader(title: String, trailing: @Composable () -> Unit) {
 }
 
 @Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
+private fun StatCard(label: String, value: Int, modifier: Modifier = Modifier) {
     AppCard(modifier) {
         Text(label, fontSize = 11.sp, color = OnSurfaceVariant)
-        Text(value, fontSize = 26.sp, fontWeight = FontWeight.Bold,
+        Text(value.toString(), fontSize = 26.sp, fontWeight = FontWeight.Bold,
             color = PrimaryLight, fontFamily = FontFamily.Serif)
     }
 }
 
 @Composable
-private fun NextTripCard() {
+private fun NextTripCard(t: NextTrip) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = Color.White,
@@ -147,43 +182,44 @@ private fun NextTripCard() {
                 Modifier.fillMaxWidth().background(PrimaryLight).padding(horizontal = 14.dp, vertical = 10.dp),
                 Arrangement.SpaceBetween, Alignment.CenterVertically
             ) {
-                Text("ID: RTA-4820B", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("ID: ${t.id}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 StatusTag("Confirmado · Seguro", SecondaryContainer, OnSecondaryContainer)
             }
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                     Column {
-                        Text("Terminal salida", fontSize = 11.sp, color = OnSurfaceVariant)
-                        Text("Bogotá D.C.", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-                        Text("06:00 AM · Hoy", fontSize = 11.sp, color = OnSurfaceVariant)
+                        Text("Salida", fontSize = 11.sp, color = OnSurfaceVariant)
+                        Text(t.from, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                        Text(t.departure, fontSize = 11.sp, color = OnSurfaceVariant)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("8h 15m", fontSize = 11.sp, color = OnSurfaceVariant)
+                        Text(t.duration, fontSize = 11.sp, color = OnSurfaceVariant)
                         Icon(Icons.Default.LocalShipping, null, tint = Secondary)
-                        Text("Vía Guaduas", fontSize = 11.sp, color = OnSurfaceVariant)
+                        Text(t.via, fontSize = 11.sp, color = OnSurfaceVariant)
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("Terminal norte", fontSize = 11.sp, color = OnSurfaceVariant)
-                        Text("Medellín", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-                        Text("03:15 PM · Est.", fontSize = 11.sp, color = OnSurfaceVariant)
+                        Text("Llegada", fontSize = 11.sp, color = OnSurfaceVariant)
+                        Text(t.to, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                        Text(t.arrival, fontSize = 11.sp, color = OnSurfaceVariant)
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("Inspección de carga completada", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text("85% listo", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                        Text("Inspección de carga", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("${(t.inspection * 100).toInt()}% listo", fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold, color = Secondary)
                     }
                     LinearProgressIndicator(
-                        progress = { 0.85f },
+                        progress = { t.inspection },
                         modifier = Modifier.fillMaxWidth().height(6.dp),
                         color = SecondaryContainer,
                         trackColor = SurfaceVariant
                     )
-                    Text("Vehículo: Kenworth T800 (WTM-294)", fontSize = 11.sp, color = OnSurfaceVariant)
+                    Text("Vehículo: ${t.vehicle}", fontSize = 11.sp, color = OnSurfaceVariant)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    InfoBox("Carga reservada", "3.8 / 5.0 Toneladas", Modifier.weight(1f))
-                    InfoBox("Cupos pasajeros", "14 / 16 ocupados", Modifier.weight(1f))
+                    InfoBox("Carga reservada", t.cargo, Modifier.weight(1f))
+                    InfoBox("Cupos pasajeros", t.seats, Modifier.weight(1f))
                 }
                 PrimaryButton(text = "Ver Manifiesto y Hoja de Ruta", onClick = {})
             }
@@ -258,6 +294,7 @@ private fun DashboardBottomBar() {
     }
 }
 
+// Usuario nuevo: todo en 0 y sin viajes
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {

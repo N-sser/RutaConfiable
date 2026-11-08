@@ -1,40 +1,264 @@
 package me.mauromax.rutaconfiable.ui.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+import me.mauromax.rutaconfiable.ui.components.*
 import me.mauromax.rutaconfiable.ui.theme.*
 
+private val Muted = Color(0xFF74777E)
+private val Body = Color(0xFF44474D)
+private val Soft = Color(0xFFEFF4FF)
+
 @Composable
-fun PaymentMethodsScreen(onBackClick: () -> Unit = {}) {
+fun PaymentMethodsScreen(
+    onBackClick: () -> Unit = {},
+    onFinish: () -> Unit = onBackClick
+) {
+    var tab by remember { mutableIntStateOf(0) }
+    var holder by remember { mutableStateOf("") }
+    var number by remember { mutableStateOf("") }
+    var expiry by remember { mutableStateOf("") }
+    var cvv by remember { mutableStateOf("") }
+    var showCvv by remember { mutableStateOf(false) }
+    var isDefault by remember { mutableStateOf(true) }
+    var saveCard by remember { mutableStateOf(true) }
+
+    val valid = holder.isNotBlank() && number.length == 16 && expiry.length == 4 && cvv.length >= 3
+
     Scaffold(
-        topBar = { StandardAppTopBar(onBackClick = onBackClick, showSecurityBadge = true) },
+        topBar = { StandardAppTopBar(showSecurityBadge = true) },
         containerColor = Background
     ) { innerPadding ->
-        Box(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                Row(Modifier.clickable { onBackClick() }, verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(16.dp), tint = Secondary)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Volver a Registro", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                }
+                Text(
+                    "Omitir por ahora", fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    color = Secondary, modifier = Modifier.clickable { onFinish() }
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(Modifier.size(20.dp), shape = CircleShape, color = Secondary) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("3", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Text("PASO FINAL DE ACTIVACIÓN", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    color = Secondary, letterSpacing = 0.5.sp)
+            }
+
+            Text("Método de Pago", fontSize = 26.sp, fontWeight = FontWeight.Bold,
+                color = PrimaryLight, fontFamily = FontFamily.Serif)
             Text(
-                text = "Métodos de pago",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryLight,
-                fontFamily = FontFamily.Serif
+                "Configure sus métodos para reservar cupos y despachar encomiendas sin filas ni demoras en taquilla.",
+                fontSize = 13.sp, color = Body, lineHeight = 18.sp
             )
+
+            CardPreview(number, holder, expiry)
+
+            // Pestañas
+            Surface(Modifier.fillMaxWidth(), color = Soft, shape = RoundedCornerShape(12.dp)) {
+                Row(Modifier.fillMaxWidth().padding(4.dp)) {
+                    listOf(
+                        "Tarjeta" to Icons.Default.CreditCard,
+                        "Billeteras" to Icons.Default.AccountBalanceWallet,
+                        "Taquilla" to Icons.Default.Store
+                    ).forEachIndexed { i, (name, icon) ->
+                        RoleOptionButton(name, icon, tab == i, Modifier.weight(1f)) { tab = i }
+                    }
+                }
+            }
+
+            if (tab != 0) {
+                Text("Este método estará disponible próximamente.", fontSize = 13.sp, color = Muted)
+            } else {
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                    Text("Aceptamos franquicias nacionales", fontSize = 11.sp, color = Body)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("VISA", "MC", "AMEX").forEach { brand ->
+                            Surface(color = Color.White, shape = RoundedCornerShape(4.dp),
+                                border = BorderStroke(1.dp, OutlineVariant)) {
+                                Text(brand, Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                            }
+                        }
+                    }
+                }
+
+                LabeledField("Nombre del titular de la tarjeta", holder, { holder = it },
+                    "Como aparece en el plástico", Icons.Default.Person)
+                LabeledField("Número de tarjeta", number, { number = it.filter(Char::isDigit).take(16) },
+                    "4500 0000 0000 0000", Icons.Default.CreditCard, numeric = true, aside = "Débito o Crédito")
+                Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp)) {
+                    LabeledField("Vencimiento (MM/AA)", expiry, { expiry = it.filter(Char::isDigit).take(4) },
+                        "MM/AA", Icons.Default.CalendarToday, Modifier.weight(1f), numeric = true)
+                    LabeledField("Código (CVV)", cvv, { cvv = it.filter(Char::isDigit).take(4) },
+                        "123", Icons.Default.Lock, Modifier.weight(1f), numeric = true, hidden = !showCvv,
+                        trailing = {
+                            IconButton(onClick = { showCvv = !showCvv }) {
+                                Icon(if (showCvv) Icons.Default.VisibilityOff else Icons.Default.Visibility, null)
+                            }
+                        })
+                }
+
+                CheckOption(isDefault, { isDefault = it }, "Método de pago predeterminado",
+                    "Prioriza en reservas rápidas y despacho de encomiendas")
+                CheckOption(saveCard, { saveCard = it }, "Recordar tarjeta para próximos viajes",
+                    "Tus credenciales se tokenizan de forma segura")
+
+                SecurityAdviceBox(
+                    title = "Cifrado Bancario SSL 256 bits y PCI-DSS",
+                    message = "Tus datos financieros viajan encriptados de extremo a extremo. Ruta Confiable no almacena tu código de seguridad CVV."
+                )
+
+                PrimaryButton(
+                    text = "Guardar método de pago", onClick = onFinish, enabled = valid,
+                    leadingIcon = Icons.Default.Lock, trailingIcon = null
+                )
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { onFinish() },
+                color = Soft, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, OutlineVariant)
+            ) {
+                Row(Modifier.padding(14.dp), Arrangement.Center, Alignment.CenterVertically) {
+                    Icon(Icons.Default.Store, null, Modifier.size(16.dp), tint = PrimaryLight)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Pagaré en efectivo en la terminal (Omitir)", fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, color = PrimaryLight)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
-@Preview(showBackground = true)
+@Composable
+private fun CardPreview(number: String, holder: String, expiry: String) {
+    val numberText = number.padEnd(16, '•').chunked(4).joinToString("  ")
+    val expiryText = if (expiry.length > 2) expiry.take(2) + "/" + expiry.drop(2) else expiry.ifEmpty { "MM/AA" }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Brush.linearGradient(listOf(PrimaryLight, Color(0xFF1E3A5F))))
+            .padding(18.dp)
+    ) {
+        Column(Modifier.fillMaxSize(), Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                Text("RUTA CARD", fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    color = Color.White, fontFamily = FontFamily.Serif)
+                Surface(color = Color.White.copy(alpha = 0.15f), shape = RoundedCornerShape(6.dp)) {
+                    Text("DÉBITO / CRÉDITO", Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+            Surface(Modifier.size(width = 36.dp, height = 28.dp), shape = RoundedCornerShape(6.dp),
+                color = Color(0xFFE0B04A)) {}
+            Text(numberText, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = Color.White, letterSpacing = 1.sp)
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.Bottom) {
+                Column(Modifier.weight(1f)) {
+                    Text("TITULAR", fontSize = 8.sp, color = Color.White.copy(alpha = 0.6f))
+                    Text(holder.ifBlank { "NOMBRE COMPLETO" }.uppercase(), fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("VENCE", fontSize = 8.sp, color = Color.White.copy(alpha = 0.6f))
+                    Text(expiryText, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LabeledField(
+    label: String,
+    value: String,
+    onChange: (String) -> Unit,
+    placeholder: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    numeric: Boolean = false,
+    hidden: Boolean = false,
+    aside: String? = null,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PrimaryLight)
+            aside?.let { Text(it, fontSize = 11.sp, color = Muted) }
+        }
+        Spacer(Modifier.height(4.dp))
+        OutlinedTextField(
+            value = value,
+            onValueChange = onChange,
+            placeholder = { Text(placeholder) },
+            leadingIcon = { Icon(icon, null) },
+            trailingIcon = trailing,
+            visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            colors = customTextFieldColors(),
+            singleLine = true
+        )
+    }
+}
+
+@Composable
+private fun CheckOption(checked: Boolean, onChange: (Boolean) -> Unit, title: String, subtitle: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+            Text(subtitle, fontSize = 11.sp, color = Muted)
+        }
+        Checkbox(checked, onChange, colors = CheckboxDefaults.colors(checkedColor = PrimaryLight))
+    }
+}
+
+@Preview(showBackground = true, heightDp = 1200)
 @Composable
 fun PaymentMethodsScreenPreview() {
     RutaConfiableTheme { PaymentMethodsScreen() }

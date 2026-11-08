@@ -208,7 +208,7 @@ fun LoginScreen(
                 }
             }
 
-            // Register Prompt Card Box
+
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
