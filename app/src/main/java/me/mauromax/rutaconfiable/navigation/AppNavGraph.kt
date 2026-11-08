@@ -32,6 +32,25 @@ sealed class Screen(val route: String) {
     object Trips : Screen("trips/{role}") {
         fun createRoute(role: String = "driver") = "trips/$role"
     }
+
+    object Loads : Screen("loads/{role}") {
+        fun createRoute(role: String = "driver") = "loads/$role"
+    }
+}
+
+private fun roleParam(role: RegistrationRole) =
+    if (role == RegistrationRole.CLIENT) "client" else "driver"
+
+private fun parseRole(arg: String?) =
+    if (arg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
+
+/** Navegación entre pestañas de la barra inferior sin apilar pantallas repetidas. */
+private fun NavHostController.goTab(route: String) {
+    navigate(route) {
+        popUpTo(Screen.Profile.route) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
 }
 
 @Composable
@@ -110,8 +129,7 @@ fun AppNavGraph(
                 }
             )
         ) { backStackEntry ->
-            val roleArg = backStackEntry.arguments?.getString("role") ?: "driver"
-            val initialRole = if (roleArg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
+            val initialRole = parseRole(backStackEntry.arguments?.getString("role"))
 
             RegistrationScreen(
                 initialRole = initialRole,
@@ -125,8 +143,7 @@ fun AppNavGraph(
                     navController.navigate(Screen.PaymentMethods.route)
                 },
                 onRegistrationSubmitted = { submittedRole ->
-                    val roleParam = if (submittedRole == RegistrationRole.CLIENT) "client" else "driver"
-                    navController.navigate(Screen.VerificationPending.createRoute(roleParam)) {
+                    navController.navigate(Screen.VerificationPending.createRoute(roleParam(submittedRole))) {
                         popUpTo(Screen.Registration.route) {
                             inclusive = true
                         }
@@ -150,14 +167,12 @@ fun AppNavGraph(
                 }
             )
         ) { backStackEntry ->
-            val roleArg = backStackEntry.arguments?.getString("role") ?: "driver"
-            val role = if (roleArg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
+            val role = parseRole(backStackEntry.arguments?.getString("role"))
 
             VerificationPendingScreen(
                 role = role,
                 onNavigateToProfile = {
-                    val roleParam = if (role == RegistrationRole.CLIENT) "client" else "driver"
-                    navController.navigate(Screen.Profile.createRoute(roleParam))
+                    navController.navigate(Screen.Profile.createRoute(roleParam(role)))
                 },
                 onResetRegistration = {
                     navController.navigate(Screen.Welcome.route) {
@@ -177,8 +192,7 @@ fun AppNavGraph(
                 }
             )
         ) { backStackEntry ->
-            val roleArg = backStackEntry.arguments?.getString("role") ?: "driver"
-            val role = if (roleArg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
+            val role = parseRole(backStackEntry.arguments?.getString("role"))
 
             ProfileScreen(
                 role = role,
@@ -188,8 +202,10 @@ fun AppNavGraph(
                     }
                 },
                 onNavigateToTrips = {
-                    val roleParam = if (role == RegistrationRole.CLIENT) "client" else "driver"
-                    navController.navigate(Screen.Trips.createRoute(roleParam))
+                    navController.goTab(Screen.Trips.createRoute(roleParam(role)))
+                },
+                onNavigateToLoads = {
+                    navController.goTab(Screen.Loads.createRoute(roleParam(role)))
                 }
             )
         }
@@ -204,12 +220,42 @@ fun AppNavGraph(
                 }
             )
         ) { backStackEntry ->
-            val roleArg = backStackEntry.arguments?.getString("role") ?: "driver"
-            val role = if (roleArg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
+            val role = parseRole(backStackEntry.arguments?.getString("role"))
 
             TripScreen(
                 role = role,
-                onNavigateToProfile = { navController.popBackStack() }
+                onNavigateToLoads = {
+                    navController.goTab(Screen.Loads.createRoute(roleParam(role)))
+                },
+                onNavigateToProfile = {
+                    navController.goTab(Screen.Profile.createRoute(roleParam(role)))
+                }
+            )
+        }
+
+        // 9. Loads Screen (publicar viaje)
+        composable(
+            route = Screen.Loads.route,
+            arguments = listOf(
+                navArgument("role") {
+                    type = NavType.StringType
+                    defaultValue = "driver"
+                }
+            )
+        ) { backStackEntry ->
+            val role = parseRole(backStackEntry.arguments?.getString("role"))
+
+            LoadsScreen(
+                role = role,
+                onPublished = {
+                    navController.goTab(Screen.Trips.createRoute(roleParam(role)))
+                },
+                onNavigateToTrips = {
+                    navController.goTab(Screen.Trips.createRoute(roleParam(role)))
+                },
+                onNavigateToProfile = {
+                    navController.goTab(Screen.Profile.createRoute(roleParam(role)))
+                }
             )
         }
     }

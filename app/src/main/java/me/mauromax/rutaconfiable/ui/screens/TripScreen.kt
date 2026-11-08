@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.mauromax.rutaconfiable.data.TripRepository
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
@@ -56,46 +57,53 @@ data class AvailableTrip(
     val seatPrice: String,
     val distance: String,
     val duration: String,
-    val road: String
-)
-
-val SampleTrips = listOf(
-    AvailableTrip(
-        "VJ-0001", "08:00 AM", "Carlos Mario Restrepo", 4.8, 142,
-        "Toyota Hilux 4x4", "Platón / Baúl Abierto con Lona", "CAL-482",
-        450, 800, "Baúl cubierto hermético", 2, 4, "Aire acondicionado cabina",
-        "$55,000", "$40,000", "405 km", "8h 30m", "Autopista Medellín-Bogotá"
-    ),
-    AvailableTrip(
-        "VJ-0002", "10:30 AM", "Juan F. Gómez", 4.6, 87,
-        "Furgón Renault Master", "Furgón cerrado", "TJK-219",
-        800, 1200, "Furgón cerrado", 1, 2, "Cabina compartida",
-        "$50,000", "$38,000", "405 km", "8h 45m", "Autopista Medellín-Bogotá"
-    )
+    val road: String,
+    val origin: String = "",
+    val destination: String = "",
+    val date: String = "",
+    val hasCargo: Boolean = true,
+    val hasSeats: Boolean = true
 )
 
 @Composable
 fun TripScreen(
     role: RegistrationRole = RegistrationRole.DRIVER,
-    trips: List<AvailableTrip> = SampleTrips,
+    trips: List<AvailableTrip> = TripRepository.trips,
+    onNavigateToLoads: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {}
 ) {
-    var origin by remember { mutableStateOf("Bogotá D.C.") }
-    var destination by remember { mutableStateOf("Medellín, Antioquia") }
-    var date by remember { mutableStateOf("24 Octubre 2025") }
-    var time by remember { mutableStateOf("08:00 AM (Madrugada)") }
+    var origin by remember { mutableStateOf("") }
+    var destination by remember { mutableStateOf("") }
+    var date by remember { mutableStateOf("") }
+    var time by remember { mutableStateOf("") }
     var vehicle by remember { mutableStateOf<String?>(null) }
     var withCargo by remember { mutableStateOf(true) }
-    var withPassengers by remember { mutableStateOf(false) }
-    var selectedId by remember { mutableStateOf(trips.firstOrNull()?.id) }
+    var withPassengers by remember { mutableStateOf(true) }
+    var selectedId by remember { mutableStateOf<String?>(null) }
 
-    val selected = trips.find { it.id == selectedId }
-    val others = trips.filter { it.id != selectedId }
+    val results = trips.filter { t ->
+        val matchesOrigin = origin.isBlank() || t.origin.contains(origin.trim(), ignoreCase = true)
+        val matchesDestination = destination.isBlank() || t.destination.contains(destination.trim(), ignoreCase = true)
+        val matchesType = when {
+            !withCargo && !withPassengers -> true
+            else -> (withCargo && t.hasCargo) || (withPassengers && t.hasSeats)
+        }
+        matchesOrigin && matchesDestination && matchesType
+    }
+    val selected = results.find { it.id == selectedId } ?: results.firstOrNull()
+    val others = results.filter { it.id != selected?.id }
 
     Scaffold(
         containerColor = Background,
         topBar = { StandardAppTopBar(showSecurityBadge = false) },
-        bottomBar = { AppBottomBar(selectedIndex = 2) { if (it == 3) onNavigateToProfile() } }
+        bottomBar = {
+            AppBottomBar(selectedIndex = 2) {
+                when (it) {
+                    1 -> onNavigateToLoads()
+                    3 -> onNavigateToProfile()
+                }
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -126,7 +134,7 @@ fun TripScreen(
                         fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
                     Text("Restablecer", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Secondary,
                         modifier = Modifier.clickable {
-                            vehicle = null; withCargo = true; withPassengers = false
+                            vehicle = null; withCargo = true; withPassengers = true
                         })
                 }
                 Row(Modifier.horizontalScroll(rememberScrollState()), Arrangement.spacedBy(8.dp)) {
@@ -156,7 +164,7 @@ fun TripScreen(
                     Text("Viajes Disponibles", fontSize = 17.sp, fontWeight = FontWeight.Bold,
                         color = PrimaryLight, fontFamily = FontFamily.Serif)
                     Spacer(Modifier.width(8.dp))
-                    StatusTag("${if (selected != null) 1 else 0} SELECCIONADO", SurfaceMuted, PrimaryLight)
+                    StatusTag("${results.size} DISPONIBLES", SurfaceMuted, PrimaryLight)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(14.dp), tint = OnSurfaceVariant)
@@ -165,17 +173,24 @@ fun TripScreen(
                 }
             }
 
-            if (selected != null) TripDetailCard(selected)
-            else TripBox {
-                Text("No hay viajes disponibles para tu búsqueda.", fontSize = 12.sp,
-                    color = OnSurfaceVariant, textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth())
+            if (selected != null) {
+                TripDetailCard(selected)
+            } else {
+                TripBox {
+                    Icon(Icons.Default.Map, null, Modifier.size(32.dp).align(Alignment.CenterHorizontally), tint = Outline)
+                    Text(
+                        if (trips.isEmpty()) "Aún no hay viajes publicados."
+                        else "No hay viajes que coincidan con tu búsqueda.",
+                        fontSize = 12.sp, color = OnSurfaceVariant, textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             // Otras salidas
             if (others.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                    Text("Otras Salidas Hoy", fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                    Text("Otras Salidas", fontSize = 15.sp, fontWeight = FontWeight.Bold,
                         color = PrimaryLight, fontFamily = FontFamily.Serif)
                     Text("${others.size} alternativas", fontSize = 11.sp, color = OnSurfaceVariant)
                 }
@@ -201,11 +216,18 @@ private fun TripDetailCard(t: AvailableTrip) {
             ) {
                 Text("VIAJE SELECCIONADO • EN DETALLE", color = OnPrimary, fontSize = 10.sp,
                     fontWeight = FontWeight.Bold)
-                StatusTag(t.road, SurfaceMuted, PrimaryLight)
+                StatusTag(t.id, SurfaceMuted, PrimaryLight)
             }
 
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 RouteMapPreview(t.distance, t.duration)
+
+                if (t.origin.isNotBlank()) {
+                    Text(
+                        "${t.origin} → ${t.destination} · ${t.date} · ${t.departure}",
+                        fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight
+                    )
+                }
 
                 // Conductor
                 Surface(color = SurfaceSoft, shape = RoundedCornerShape(10.dp)) {
@@ -264,20 +286,24 @@ private fun TripDetailCard(t: AvailableTrip) {
                                 fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
                             StatusTag("Espacio Confirmado", StatusAvailableBg, StatusAvailable)
                         }
-                        CapacityRow(Icons.Default.Inventory2, "Carga Flete", "${t.cargoFreeKg} kg libres", t.cargoNote) {
-                            LinearProgressIndicator(
-                                progress = { t.cargoFreeKg.toFloat() / t.cargoTotalKg },
-                                modifier = Modifier.fillMaxWidth().height(5.dp),
-                                color = SecondaryContainer, trackColor = SurfaceVariant
-                            )
+                        if (t.hasCargo) {
+                            CapacityRow(Icons.Default.Inventory2, "Carga Flete", "${t.cargoFreeKg} kg libres", t.cargoNote) {
+                                LinearProgressIndicator(
+                                    progress = { (t.cargoFreeKg.toFloat() / t.cargoTotalKg).coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth().height(5.dp),
+                                    color = SecondaryContainer, trackColor = SurfaceVariant
+                                )
+                            }
                         }
-                        CapacityRow(Icons.Default.EventSeat, "Pasajeros", "${t.seatsFree} cupos libres", t.seatsNote) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                repeat(t.seatsTotal) { i ->
-                                    Box(
-                                        Modifier.size(10.dp).clip(CircleShape)
-                                            .background(if (i < t.seatsFree) PrimaryLight else SurfaceVariant)
-                                    )
+                        if (t.hasSeats) {
+                            CapacityRow(Icons.Default.EventSeat, "Pasajeros", "${t.seatsFree} cupos libres", t.seatsNote) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    repeat(t.seatsTotal) { i ->
+                                        Box(
+                                            Modifier.size(10.dp).clip(CircleShape)
+                                                .background(if (i < t.seatsFree) PrimaryLight else SurfaceVariant)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -286,13 +312,17 @@ private fun TripDetailCard(t: AvailableTrip) {
 
                 // Tarifas
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                    Column {
-                        Text("CARGA RESERVADA", fontSize = 10.sp, color = OnSurfaceVariant)
-                        Text("${t.cargoPrice} COP", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("CUPO A BORDO", fontSize = 10.sp, color = OnSurfaceVariant)
-                        Text("${t.seatPrice} COP", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                    if (t.hasCargo) {
+                        Column {
+                            Text("CARGA", fontSize = 10.sp, color = OnSurfaceVariant)
+                            Text("${t.cargoPrice} COP", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                        }
+                    } else Spacer(Modifier.width(1.dp))
+                    if (t.hasSeats) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("CUPO A BORDO", fontSize = 10.sp, color = OnSurfaceVariant)
+                            Text("${t.seatPrice} COP", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                        }
                     }
                 }
 
@@ -387,11 +417,12 @@ private fun OtherDepartureRow(t: AvailableTrip, onClick: () -> Unit) {
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text("${t.departure} · ${t.vehicle}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-                Text("Conductor: ${t.driver} · ${t.cargoFreeKg} kg libres", fontSize = 10.sp, color = OnSurfaceVariant)
+                Text("${t.origin} → ${t.destination}", fontSize = 10.sp, color = OnSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.End) {
-                StatusTag("${t.seatsFree} cupo", StatusAvailableBg, StatusAvailable)
-                Text(t.cargoPrice, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                if (t.hasSeats) StatusTag("${t.seatsFree} cupo", StatusAvailableBg, StatusAvailable)
+                Text(if (t.hasCargo) t.cargoPrice else t.seatPrice,
+                    fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Secondary)
             }
         }
     }
@@ -429,5 +460,17 @@ private fun TripBox(content: @Composable ColumnScope.() -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun TripScreenPreview() {
-    RutaConfiableTheme { TripScreen() }
+    RutaConfiableTheme {
+        TripScreen(
+            trips = listOf(
+                AvailableTrip(
+                    "VJ-0001", "08:00 AM", "Carlos Mario Restrepo", 4.8, 142,
+                    "Toyota Hilux 4x4", "Carga y flete", "CAL482",
+                    450, 800, "Espacio de carga", 2, 4, "Cupo a bordo",
+                    "$ 55.000", "$ 40.000", "405 km", "8h 30m", "Bogotá → Medellín",
+                    origin = "Bogotá", destination = "Medellín", date = "24/10/2026"
+                )
+            )
+        )
+    }
 }

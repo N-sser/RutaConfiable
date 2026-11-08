@@ -2,6 +2,7 @@ package me.mauromax.rutaconfiable.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,14 +56,20 @@ fun ProfileScreen(
     nextTrip: NextTrip? = null,
     trips: List<Trip> = emptyList(),
     onLogout: () -> Unit = {},
-    onNavigateToTrips: () -> Unit = {}
+    onNavigateToTrips: () -> Unit = {},
+    onNavigateToLoads: () -> Unit = {}
 ) {
     val isDriver = role == RegistrationRole.DRIVER
 
     Scaffold(
         containerColor = Background,
         bottomBar = {
-            AppBottomBar(selectedIndex = 3) { if (it == 2) onNavigateToTrips() }
+            AppBottomBar(selectedIndex = 3) {
+                when (it) {
+                    1 -> onNavigateToLoads()
+                    2 -> onNavigateToTrips()
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -114,17 +121,28 @@ fun ProfileScreen(
 
             // Acciones rápidas
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickAction(Icons.Default.Add, "Publicar nuevo viaje",
-                    "Ofrecer flete o ruta", Modifier.weight(1f))
-                QuickAction(Icons.Default.Search, "Buscar trayectos",
-                    "Envíos y pasajes libres", Modifier.weight(1f))
+                QuickAction(
+                    icon = Icons.Default.Add,
+                    title = "Publicar nuevo viaje",
+                    subtitle = "Ofrecer flete o ruta",
+                    modifier = Modifier.weight(1f),
+                    onClick = onNavigateToLoads
+                )
+                QuickAction(
+                    icon = Icons.Default.Search,
+                    title = "Buscar trayectos",
+                    subtitle = "Envíos y pasajes libres",
+                    modifier = Modifier.weight(1f),
+                    onClick = onNavigateToTrips
+                )
             }
 
             // Viajes recientes
             SectionHeader("Viajes Programados Recientes") {
                 if (trips.isNotEmpty()) {
                     Text("Ver todos (${trips.size})", fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold, color = Secondary)
+                        fontWeight = FontWeight.Bold, color = Secondary,
+                        modifier = Modifier.clickable { onNavigateToTrips() })
                 }
             }
             if (trips.isEmpty()) EmptyState(Icons.Default.Event, "Aún no tienes viajes programados.")
@@ -137,7 +155,7 @@ fun ProfileScreen(
 private fun AppCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier = modifier,
-        color = Color.White,
+        color = CardBackground,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, OutlineVariant),
         shadowElevation = 1.dp
@@ -177,7 +195,7 @@ private fun StatCard(label: String, value: Int, modifier: Modifier = Modifier) {
 private fun NextTripCard(t: NextTrip) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = Color.White,
+        color = CardBackground,
         border = BorderStroke(1.dp, OutlineVariant),
         shadowElevation = 1.dp
     ) {
@@ -242,8 +260,14 @@ private fun InfoBox(label: String, value: String, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun QuickAction(icon: ImageVector, title: String, subtitle: String, modifier: Modifier = Modifier) {
-    AppCard(modifier) {
+private fun QuickAction(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
+    AppCard(modifier.clickable { onClick() }) {
         Icon(icon, null, tint = Secondary)
         Spacer(Modifier.height(6.dp))
         Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
