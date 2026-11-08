@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StatusTag
 import me.mauromax.rutaconfiable.ui.theme.*
@@ -53,13 +54,16 @@ fun ProfileScreen(
     stats: ProfileStats = ProfileStats(),
     nextTrip: NextTrip? = null,
     trips: List<Trip> = emptyList(),
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onNavigateToTrips: () -> Unit = {}
 ) {
     val isDriver = role == RegistrationRole.DRIVER
 
     Scaffold(
         containerColor = Background,
-        bottomBar = { DashboardBottomBar() }
+        bottomBar = {
+            AppBottomBar(selectedIndex = 3) { if (it == 2) onNavigateToTrips() }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -229,7 +233,7 @@ private fun NextTripCard(t: NextTrip) {
 
 @Composable
 private fun InfoBox(label: String, value: String, modifier: Modifier = Modifier) {
-    Surface(modifier, color = Color(0xFFEFF4FF), shape = RoundedCornerShape(8.dp)) {
+    Surface(modifier, color = SurfaceSoft, shape = RoundedCornerShape(8.dp)) {
         Column(Modifier.padding(10.dp)) {
             Text(label, fontSize = 11.sp, color = OnSurfaceVariant)
             Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
@@ -267,30 +271,6 @@ private fun TripRow(t: Trip) {
         }
         Spacer(Modifier.height(6.dp))
         Text(t.info, fontSize = 11.sp, color = OnSurfaceVariant)
-    }
-}
-
-@Composable
-private fun DashboardBottomBar() {
-    NavigationBar(containerColor = Color.White) {
-        listOf(
-            Icons.Default.Home to "Inicio",
-            Icons.Default.Inventory2 to "Cargas",
-            Icons.Default.Map to "Viajes",
-            Icons.Default.Person to "Perfil"
-        ).forEachIndexed { i, (icon, label) ->
-            NavigationBarItem(
-                selected = i == 3,
-                onClick = {},
-                icon = { Icon(icon, label) },
-                label = { Text(label, fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Secondary,
-                    selectedTextColor = Secondary,
-                    indicatorColor = SecondaryContainer.copy(alpha = 0.2f)
-                )
-            )
-        }
     }
 }
 

@@ -28,6 +28,10 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile/{role}") {
         fun createRoute(role: String = "driver") = "profile/$role"
     }
+
+    object Trips : Screen("trips/{role}") {
+        fun createRoute(role: String = "driver") = "trips/$role"
+    }
 }
 
 @Composable
@@ -182,7 +186,30 @@ fun AppNavGraph(
                     navController.navigate(Screen.Welcome.route) {
                         popUpTo(0)
                     }
+                },
+                onNavigateToTrips = {
+                    val roleParam = if (role == RegistrationRole.CLIENT) "client" else "driver"
+                    navController.navigate(Screen.Trips.createRoute(roleParam))
                 }
+            )
+        }
+
+        // 8. Trips Screen
+        composable(
+            route = Screen.Trips.route,
+            arguments = listOf(
+                navArgument("role") {
+                    type = NavType.StringType
+                    defaultValue = "driver"
+                }
+            )
+        ) { backStackEntry ->
+            val roleArg = backStackEntry.arguments?.getString("role") ?: "driver"
+            val role = if (roleArg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
+
+            TripScreen(
+                role = role,
+                onNavigateToProfile = { navController.popBackStack() }
             )
         }
     }
