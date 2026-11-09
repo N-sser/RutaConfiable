@@ -23,16 +23,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.mauromax.rutaconfiable.ui.components.*
 import me.mauromax.rutaconfiable.ui.theme.*
+import kotlinx.coroutines.launch
 
 // Credenciales de demostración (reemplazar por validación contra el backend)
-private val DEMO_USERS = setOf("conductor@rutaconfiable.com", "3109876543")
-private const val DEMO_PASSWORD = "Ruta1234"
+private val DEMO_USERS = listOf("3109876543", "usuario@ejemplo.com", "admin", "driver", "client")
+private val DEMO_PASSWORD = "123"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onBackClick: () -> Unit = {},
-    onLoginSuccess: () -> Unit = {},
+    onLoginSuccess: (role: String) -> Unit = {},
     onForgotPasswordClick: () -> Unit = {},
     onRegisterClick: () -> Unit = {}
 ) {
@@ -202,7 +203,11 @@ fun LoginScreen(
                         onClick = {
                             val valid = identifier.filter { !it.isWhitespace() }.lowercase() in DEMO_USERS &&
                                     password == DEMO_PASSWORD
-                            if (valid) onLoginSuccess() else loginError = true
+                            if (valid) {
+                                onLoginSuccess(selectedRole)
+                            } else {
+                                loginError = true
+                            }
                         }
                     )
                 }

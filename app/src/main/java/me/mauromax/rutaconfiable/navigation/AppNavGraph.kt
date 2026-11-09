@@ -79,8 +79,9 @@ fun AppNavGraph(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onLoginSuccess = {
-                    navController.navigate(Screen.Profile.createRoute("driver")) {
+                onLoginSuccess = { role ->
+                    val routeRole = if (role.equals("Cliente", ignoreCase = true)) "client" else "driver"
+                    navController.navigate(Screen.Profile.createRoute(routeRole)) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
                 },
