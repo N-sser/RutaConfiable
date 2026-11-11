@@ -13,3 +13,27 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Root project .gitignore
+
+# Gradle / Kotlin (matches in every module)
+.gradle/
+build/
+.kotlin/
+
+# Local config
+local.properties
+
+# IDE
+*.iml
+.idea/
+
+# Build outputs
+*.apk
+*.aab
+output-metadata.json
+
+# Keystore & secrets
+*.jks
+*.keystore
+google-services.json
