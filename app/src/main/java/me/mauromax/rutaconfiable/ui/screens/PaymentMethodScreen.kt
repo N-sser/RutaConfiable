@@ -31,10 +31,6 @@ import androidx.compose.ui.unit.sp
 import me.mauromax.rutaconfiable.ui.components.*
 import me.mauromax.rutaconfiable.ui.theme.*
 
-private val Muted = Color(0xFF74777E)
-private val Body = Color(0xFF44474D)
-private val Soft = Color(0xFFEFF4FF)
-
 @Composable
 fun PaymentMethodsScreen(
     onBackClick: () -> Unit = {},
@@ -87,33 +83,25 @@ fun PaymentMethodsScreen(
                     color = Secondary, letterSpacing = 0.5.sp)
             }
 
-            Text("Método de Pago", fontSize = 26.sp, fontWeight = FontWeight.Bold,
-                color = PrimaryLight, fontFamily = FontFamily.Serif)
-            Text(
-                "Configure sus métodos para reservar cupos y despachar encomiendas sin filas ni demoras en taquilla.",
-                fontSize = 13.sp, color = Body, lineHeight = 18.sp
-            )
+            ScreenTitle("Método de Pago", 26.sp)
+            BodyText("Configure sus métodos para reservar cupos y despachar encomiendas sin filas ni demoras en taquilla.")
 
             CardPreview(number, holder, expiry)
 
-            // Pestañas
-            Surface(Modifier.fillMaxWidth(), color = Soft, shape = RoundedCornerShape(12.dp)) {
-                Row(Modifier.fillMaxWidth().padding(4.dp)) {
-                    listOf(
-                        "Tarjeta" to Icons.Default.CreditCard,
-                        "Billeteras" to Icons.Default.AccountBalanceWallet,
-                        "Taquilla" to Icons.Default.Store
-                    ).forEachIndexed { i, (name, icon) ->
-                        RoleOptionButton(name, icon, tab == i, Modifier.weight(1f)) { tab = i }
-                    }
-                }
-            }
+            SegmentedSelector(
+                listOf(
+                    "Tarjeta" to Icons.Default.CreditCard,
+                    "Billeteras" to Icons.Default.AccountBalanceWallet,
+                    "Taquilla" to Icons.Default.Store
+                ),
+                tab
+            ) { tab = it }
 
             if (tab != 0) {
-                Text("Este método estará disponible próximamente.", fontSize = 13.sp, color = Muted)
+                Text("Este método estará disponible próximamente.", fontSize = 13.sp, color = Outline)
             } else {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                    Text("Aceptamos franquicias nacionales", fontSize = 11.sp, color = Body)
+                    Text("Aceptamos franquicias nacionales", fontSize = 11.sp, color = OnSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf("VISA", "MC", "AMEX").forEach { brand ->
                             Surface(color = Color.White, shape = RoundedCornerShape(4.dp),
@@ -159,7 +147,7 @@ fun PaymentMethodsScreen(
 
             Surface(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { onFinish() },
-                color = Soft, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, OutlineVariant)
+                color = SurfaceSoft, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, OutlineVariant)
             ) {
                 Row(Modifier.padding(14.dp), Arrangement.Center, Alignment.CenterVertically) {
                     Icon(Icons.Default.Store, null, Modifier.size(16.dp), tint = PrimaryLight)
@@ -228,7 +216,7 @@ private fun LabeledField(
     Column(modifier) {
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
             Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PrimaryLight)
-            aside?.let { Text(it, fontSize = 11.sp, color = Muted) }
+            aside?.let { Text(it, fontSize = 11.sp, color = Outline) }
         }
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
@@ -252,7 +240,7 @@ private fun CheckOption(checked: Boolean, onChange: (Boolean) -> Unit, title: St
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-            Text(subtitle, fontSize = 11.sp, color = Muted)
+            Text(subtitle, fontSize = 11.sp, color = Outline)
         }
         Checkbox(checked, onChange, colors = CheckboxDefaults.colors(checkedColor = PrimaryLight))
     }

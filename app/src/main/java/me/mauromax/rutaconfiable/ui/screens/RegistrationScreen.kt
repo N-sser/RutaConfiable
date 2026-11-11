@@ -28,10 +28,6 @@ import me.mauromax.rutaconfiable.ui.theme.*
 
 enum class RegistrationRole { DRIVER, CLIENT }
 
-private val Muted = Color(0xFF74777E)
-private val Body = Color(0xFF44474D)
-private val Soft = Color(0xFFEFF4FF)
-
 @Composable
 fun RegistrationScreen(
     initialRole: RegistrationRole = RegistrationRole.DRIVER,
@@ -55,25 +51,10 @@ fun RegistrationScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Selector de rol
-            Surface(Modifier.fillMaxWidth(), color = Soft, shape = RoundedCornerShape(12.dp)) {
-                Row(Modifier.fillMaxWidth().padding(4.dp)) {
-                    RoleOptionButton(
-                        text = "Conductor",
-                        icon = Icons.Default.LocalShipping,
-                        isSelected = currentRole == RegistrationRole.DRIVER,
-                        modifier = Modifier.weight(1f),
-                        onClick = { currentRole = RegistrationRole.DRIVER }
-                    )
-                    RoleOptionButton(
-                        text = "Cliente",
-                        icon = Icons.Default.Person,
-                        isSelected = currentRole == RegistrationRole.CLIENT,
-                        modifier = Modifier.weight(1f),
-                        onClick = { currentRole = RegistrationRole.CLIENT }
-                    )
-                }
-            }
+            SegmentedSelector(
+                listOf("Conductor" to Icons.Default.LocalShipping, "Cliente" to Icons.Default.Person),
+                currentRole.ordinal
+            ) { currentRole = RegistrationRole.entries[it] }
 
             if (currentRole == RegistrationRole.DRIVER) {
                 DriverForm { onRegistrationSubmitted(RegistrationRole.DRIVER) }
@@ -89,7 +70,7 @@ fun RegistrationScreen(
                 Arrangement.Center,
                 Alignment.CenterVertically
             ) {
-                Text("¿Ya tienes una cuenta registrada? ", fontSize = 13.sp, color = Body)
+                Text("¿Ya tienes una cuenta registrada? ", fontSize = 13.sp, color = OnSurfaceVariant)
                 Text(
                     "Iniciar sesión", fontSize = 13.sp, fontWeight = FontWeight.Bold,
                     color = Secondary, modifier = Modifier.clickable { onLoginClick() }
@@ -149,7 +130,7 @@ private fun ClientForm(onAddPaymentClick: () -> Unit, onSubmit: () -> Unit) {
                     Surface(
                         modifier = Modifier.height(56.dp).clickable { docMenu = true },
                         shape = RoundedCornerShape(8.dp),
-                        color = Soft,
+                        color = SurfaceSoft,
                         border = BorderStroke(1.dp, OutlineVariant)
                     ) {
                         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -189,7 +170,7 @@ private fun ClientForm(onAddPaymentClick: () -> Unit, onSubmit: () -> Unit) {
             leadingIcon = Icons.Default.Add
         )
 
-        Surface(Modifier.fillMaxWidth(), color = Soft, shape = RoundedCornerShape(12.dp)) {
+        Surface(Modifier.fillMaxWidth(), color = SurfaceSoft, shape = RoundedCornerShape(12.dp)) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(Modifier.size(40.dp), shape = RoundedCornerShape(8.dp), color = SecondaryContainer) {
                     Icon(Icons.Default.DirectionsBus, null, Modifier.padding(10.dp), tint = Color.White)
@@ -199,7 +180,7 @@ private fun ClientForm(onAddPaymentClick: () -> Unit, onSubmit: () -> Unit) {
                     Text("Póliza de Pasajero y Mercancía", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
                     Text(
                         "Cobertura activa desde el abordaje hasta la entrega final en destino.",
-                        fontSize = 11.sp, color = Body, lineHeight = 15.sp
+                        fontSize = 11.sp, color = OnSurfaceVariant, lineHeight = 15.sp
                     )
                 }
             }
@@ -243,7 +224,7 @@ private fun DriverForm(onSubmit: () -> Unit) {
             title = "1. Información Personal",
             icon = Icons.Default.Badge,
             tagText = "Obligatorio",
-            tagColor = Muted
+            tagColor = Outline
         ) {
             AppOutlinedTextField(fullName, { fullName = it }, "Nombre completo", "Ej. Carlos Mendoza Rivas", Icons.Default.Person)
             AppOutlinedTextField(email, { email = it }, "Correo electrónico", "operaciones@ejemplo.com", Icons.Default.Email)
@@ -273,7 +254,7 @@ private fun DriverForm(onSubmit: () -> Unit) {
             title = "3. Requisitos del Vehículo",
             icon = Icons.Default.DirectionsCar,
             tagText = "Inspección Vial",
-            tagColor = Muted
+            tagColor = Outline
         ) {
             FieldLabel("Tipo de vehículo habilitado")
             Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp)) {
@@ -309,7 +290,7 @@ private fun DriverForm(onSubmit: () -> Unit) {
             Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(6.dp)) {
                 StatusTag("✓ RUNT Conductor", StatusAvailableBg, StatusAvailable)
                 StatusTag("⏱ Revisión SOAT", StatusPendingBg, StatusPending)
-                StatusTag("✓ Carga Asegurada", Color(0xFFE5EEFF), PrimaryLight)
+                StatusTag("✓ Carga Asegurada", SurfaceMuted, PrimaryLight)
             }
         }
 
@@ -328,45 +309,26 @@ private fun DriverForm(onSubmit: () -> Unit) {
 // ------------------------------------------------------ PIEZAS REUTILIZABLES
 
 @Composable
-private fun Chip(content: @Composable RowScope.() -> Unit) {
-    Surface(color = Color(0xFFE5EEFF), shape = RoundedCornerShape(16.dp)) {
-        Row(
-            Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            content = content
-        )
-    }
-}
-
-@Composable
 private fun FormHeader(icon: ImageVector, tag: String, title: String, description: String) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-            Chip {
+            PillTag {
                 Icon(icon, null, Modifier.size(14.dp), tint = Secondary)
                 Spacer(Modifier.width(4.dp))
                 Text(tag, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
             }
-            Chip { Text("Paso 1 de 2", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryLight) }
+            PillTag { Text("Paso 1 de 2", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryLight) }
         }
-        Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = PrimaryLight, fontFamily = FontFamily.Serif)
-        Text(description, fontSize = 13.sp, color = Body, lineHeight = 18.sp)
+        ScreenTitle(title)
+        BodyText(description)
     }
 }
-
-@Composable
-private fun FieldLabel(text: String) =
-    Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PrimaryLight)
-
-@Composable
-private fun Hint(text: String, modifier: Modifier = Modifier) =
-    Text(text, fontSize = 11.sp, color = Muted, modifier = modifier)
 
 @Composable
 private fun CheckRow(checked: Boolean, onChange: (Boolean) -> Unit, color: Color, text: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Checkbox(checked, onChange, colors = CheckboxDefaults.colors(checkedColor = color))
-        Text(text, fontSize = 12.sp, color = Body, lineHeight = 16.sp, modifier = Modifier.padding(top = 10.dp))
+        Text(text, fontSize = 12.sp, color = OnSurfaceVariant, lineHeight = 16.sp, modifier = Modifier.padding(top = 10.dp))
     }
 }
 
@@ -376,7 +338,7 @@ private fun SmallButton(text: String, icon: ImageVector? = null, dark: Boolean =
         onClick = { },
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (dark) PrimaryLight else Color(0xFFD3E4FE),
+            containerColor = if (dark) PrimaryLight else SurfaceVariant,
             contentColor = if (dark) Color.White else PrimaryLight
         ),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
@@ -405,13 +367,13 @@ private fun UploadRow(
                 if (dashed) Modifier.dashedBorder(1.dp, OutlineVariant, 8.dp)
                 else Modifier.border(1.dp, OutlineVariant, shape)
             )
-            .background(Soft, shape)
+            .background(SurfaceSoft, shape)
             .padding(12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            Surface(Modifier.size(40.dp), shape = CircleShape, color = Color(0xFFD3E4FE)) {
+            Surface(Modifier.size(40.dp), shape = CircleShape, color = SurfaceVariant) {
                 Icon(icon, null, Modifier.padding(9.dp), tint = PrimaryLight)
             }
             Spacer(Modifier.width(10.dp))
