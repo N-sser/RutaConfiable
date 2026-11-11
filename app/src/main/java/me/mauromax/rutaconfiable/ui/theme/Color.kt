@@ -44,3 +44,16 @@ val StatusBooked = Color(0xFFDC2626)
 val StatusBookedBg = Color(0xFFFEE2E2)
 val StatusPending = Color(0xFFD97706)
 val StatusPendingBg = Color(0xFFFEF3C7)
+
+// Colores adicionales
+val CardBackground = Color(0xFFFFFFFF)
+val SurfaceSoft = Color(0xFFEFF4FF)
+val SurfaceMuted = Color(0xFFE5EEFF)
+val SecondarySoft = Color(0xFFFFDBCC)
+
+// Pantalla de viajes
+val MapBackground = Color(0xFFE8EEF4)
+val MapRoadLine = Color(0xFFFFFFFF)
+val PlateYellow = Color(0xFFFACC15)
+val OnPlateYellow = Color(0xFF422006)
+val RatingStar = Color(0xFFF59E0B)
