@@ -1,6 +1,7 @@
 package me.mauromax.rutaconfiable.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -14,39 +15,37 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object ForgotPasswordStep1 : Screen("forgot_password_step_1")
     object ForgotPasswordStep2 : Screen("forgot_password_step_2")
-
     object PaymentMethods : Screen("payment_methods")
 
-    object Registration : Screen("registration/{role}") {
-        fun createRoute(role: String = "driver") = "registration/$role"
-    }
+    // Estas pantallas reciben el rol en la ruta: "profile/driver" o "profile/client"
+    object Registration : Screen("registration/{role}")
+    object VerificationPending : Screen("verification_pending/{role}")
+    object Profile : Screen("profile/{role}")
+    object Trips : Screen("trips/{role}")
+    object Loads : Screen("loads/{role}")
 
-    object VerificationPending : Screen("verification_pending/{role}") {
-        fun createRoute(role: String = "driver") = "verification_pending/$role"
-    }
+    /** Ruta con el rol ya puesto, por ejemplo "profile/driver". */
+    fun withRole(role: RegistrationRole) =
+        route.replace("{role}", if (role == RegistrationRole.CLIENT) "client" else "driver")
+}
 
-    object Profile : Screen("profile/{role}") {
-        fun createRoute(role: String = "driver") = "profile/$role"
-    }
-
-    object Trips : Screen("trips/{role}") {
-        fun createRoute(role: String = "driver") = "trips/$role"
-    }
-
-    object Loads : Screen("loads/{role}") {
-        fun createRoute(role: String = "driver") = "loads/$role"
+/** Declara una pantalla cuya ruta lleva el rol; `content` recibe el rol ya convertido. */
+private fun NavGraphBuilder.roleComposable(screen: Screen, content: @Composable (RegistrationRole) -> Unit) {
+    composable(
+        route = screen.route,
+        arguments = listOf(navArgument("role") {
+            type = NavType.StringType
+            defaultValue = "driver"
+        })
+    ) { entry ->
+        val isClient = entry.arguments?.getString("role") == "client"
+        content(if (isClient) RegistrationRole.CLIENT else RegistrationRole.DRIVER)
     }
 }
 
-private fun roleParam(role: RegistrationRole) =
-    if (role == RegistrationRole.CLIENT) "client" else "driver"
-
-private fun parseRole(arg: String?) =
-    if (arg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
-
 /** Navegación entre pestañas de la barra inferior sin apilar pantallas repetidas. */
-private fun NavHostController.goTab(route: String) {
-    navigate(route) {
+private fun NavHostController.goTab(screen: Screen, role: RegistrationRole) {
+    navigate(screen.withRole(role)) {
         popUpTo(Screen.Profile.route) { saveState = true }
         launchSingleTop = true
         restoreState = true
@@ -54,64 +53,45 @@ private fun NavHostController.goTab(route: String) {
 }
 
 @Composable
-fun AppNavGraph(
-    navController: NavHostController = rememberNavController()
-) {
-    NavHost(
-        navController = navController,
-        startDestination = Screen.Welcome.route
-    ) {
-        // 1. Welcome Screen
-        composable(route = Screen.Welcome.route) {
+fun AppNavGraph(navController: NavHostController = rememberNavController()) {
+    // Vuelve a la pantalla de bienvenida y borra todo el historial
+    fun backToWelcome() = navController.navigate(Screen.Welcome.route) { popUpTo(0) }
+
+    NavHost(navController = navController, startDestination = Screen.Welcome.route) {
+        composable(Screen.Welcome.route) {
             WelcomeScreen(
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route)
-                },
+                onNavigateToLogin = { navController.navigate(Screen.Login.route) },
                 onNavigateToRegister = {
-                    navController.navigate(Screen.Registration.createRoute("driver"))
+                    navController.navigate(Screen.Registration.withRole(RegistrationRole.DRIVER))
                 }
             )
         }
 
-        // 2. Login Screen
-        composable(route = Screen.Login.route) {
+        composable(Screen.Login.route) {
             LoginScreen(
-                onBackClick = {
-                    navController.popBackStack()
-                },
+                onBackClick = { navController.popBackStack() },
                 onLoginSuccess = { role ->
-                    val routeRole = if (role.equals("Cliente", ignoreCase = true)) "client" else "driver"
-                    navController.navigate(Screen.Profile.createRoute(routeRole)) {
+                    navController.navigate(Screen.Profile.withRole(role)) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
                 },
-                onForgotPasswordClick = {
-                    navController.navigate(Screen.ForgotPasswordStep1.route)
-                },
+                onForgotPasswordClick = { navController.navigate(Screen.ForgotPasswordStep1.route) },
                 onRegisterClick = {
-                    navController.navigate(Screen.Registration.createRoute("driver"))
+                    navController.navigate(Screen.Registration.withRole(RegistrationRole.DRIVER))
                 }
             )
         }
 
-        // 3. Forgot Password Step 1
-        composable(route = Screen.ForgotPasswordStep1.route) {
+        composable(Screen.ForgotPasswordStep1.route) {
             ForgotPasswordStep1Screen(
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onSendCodeSuccess = {
-                    navController.navigate(Screen.ForgotPasswordStep2.route)
-                }
+                onBackClick = { navController.popBackStack() },
+                onSendCodeSuccess = { navController.navigate(Screen.ForgotPasswordStep2.route) }
             )
         }
 
-        // 4. Forgot Password Step 2
-        composable(route = Screen.ForgotPasswordStep2.route) {
+        composable(Screen.ForgotPasswordStep2.route) {
             ForgotPasswordStep2Screen(
-                onBackClick = {
-                    navController.popBackStack()
-                },
+                onBackClick = { navController.popBackStack() },
                 onResetPasswordSuccess = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -120,143 +100,55 @@ fun AppNavGraph(
             )
         }
 
-        // 5. Registration Screen
-        composable(
-            route = Screen.Registration.route,
-            arguments = listOf(
-                navArgument("role") {
-                    type = NavType.StringType
-                    defaultValue = "driver"
-                }
-            )
-        ) { backStackEntry ->
-            val initialRole = parseRole(backStackEntry.arguments?.getString("role"))
-
+        roleComposable(Screen.Registration) { role ->
             RegistrationScreen(
-                initialRole = initialRole,
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onLoginClick = {
-                    navController.navigate(Screen.Login.route)
-                },
-                onAddPaymentClick = {
-                    navController.navigate(Screen.PaymentMethods.route)
-                },
+                initialRole = role,
+                onBackClick = { navController.popBackStack() },
+                onLoginClick = { navController.navigate(Screen.Login.route) },
+                onAddPaymentClick = { navController.navigate(Screen.PaymentMethods.route) },
                 onRegistrationSubmitted = { submittedRole ->
-                    navController.navigate(Screen.VerificationPending.createRoute(roleParam(submittedRole))) {
-                        popUpTo(Screen.Registration.route) {
-                            inclusive = true
-                        }
+                    navController.navigate(Screen.VerificationPending.withRole(submittedRole)) {
+                        popUpTo(Screen.Registration.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        // Payment Methods Screen (desde el registro de cliente)
-        composable(route = Screen.PaymentMethods.route) {
+        composable(Screen.PaymentMethods.route) {
             PaymentMethodsScreen(onBackClick = { navController.popBackStack() })
         }
 
-        // 6. Verification Pending Screen
-        composable(
-            route = Screen.VerificationPending.route,
-            arguments = listOf(
-                navArgument("role") {
-                    type = NavType.StringType
-                    defaultValue = "driver"
-                }
-            )
-        ) { backStackEntry ->
-            val role = parseRole(backStackEntry.arguments?.getString("role"))
-
+        roleComposable(Screen.VerificationPending) { role ->
             VerificationPendingScreen(
                 role = role,
-                onNavigateToProfile = {
-                    navController.navigate(Screen.Profile.createRoute(roleParam(role)))
-                },
-                onResetRegistration = {
-                    navController.navigate(Screen.Welcome.route) {
-                        popUpTo(0)
-                    }
-                }
+                onNavigateToProfile = { navController.navigate(Screen.Profile.withRole(role)) },
+                onResetRegistration = { backToWelcome() }
             )
         }
 
-        // 7. Profile Screen
-        composable(
-            route = Screen.Profile.route,
-            arguments = listOf(
-                navArgument("role") {
-                    type = NavType.StringType
-                    defaultValue = "driver"
-                }
-            )
-        ) { backStackEntry ->
-            val role = parseRole(backStackEntry.arguments?.getString("role"))
-
+        roleComposable(Screen.Profile) { role ->
             ProfileScreen(
                 role = role,
-                onLogout = {
-                    navController.navigate(Screen.Welcome.route) {
-                        popUpTo(0)
-                    }
-                },
-                onNavigateToTrips = {
-                    navController.goTab(Screen.Trips.createRoute(roleParam(role)))
-                },
-                onNavigateToLoads = {
-                    navController.goTab(Screen.Loads.createRoute(roleParam(role)))
-                }
+                onLogout = { backToWelcome() },
+                onNavigateToTrips = { navController.goTab(Screen.Trips, role) },
+                onNavigateToLoads = { navController.goTab(Screen.Loads, role) }
             )
         }
 
-        // 8. Trips Screen
-        composable(
-            route = Screen.Trips.route,
-            arguments = listOf(
-                navArgument("role") {
-                    type = NavType.StringType
-                    defaultValue = "driver"
-                }
-            )
-        ) { backStackEntry ->
-            val role = parseRole(backStackEntry.arguments?.getString("role"))
-
+        roleComposable(Screen.Trips) { role ->
             TripScreen(
                 role = role,
-                onNavigateToLoads = {
-                    navController.goTab(Screen.Loads.createRoute(roleParam(role)))
-                },
-                onNavigateToProfile = {
-                    navController.goTab(Screen.Profile.createRoute(roleParam(role)))
-                }
+                onNavigateToLoads = { navController.goTab(Screen.Loads, role) },
+                onNavigateToProfile = { navController.goTab(Screen.Profile, role) }
             )
         }
 
-        // 9. Loads Screen (publicar viaje)
-        composable(
-            route = Screen.Loads.route,
-            arguments = listOf(
-                navArgument("role") {
-                    type = NavType.StringType
-                    defaultValue = "driver"
-                }
-            )
-        ) { backStackEntry ->
-            val role = parseRole(backStackEntry.arguments?.getString("role"))
-
+        roleComposable(Screen.Loads) { role ->
             LoadsScreen(
                 role = role,
-                onPublished = {
-                    navController.goTab(Screen.Trips.createRoute(roleParam(role)))
-                },
-                onNavigateToTrips = {
-                    navController.goTab(Screen.Trips.createRoute(roleParam(role)))
-                },
-                onNavigateToProfile = {
-                    navController.goTab(Screen.Profile.createRoute(roleParam(role)))
-                }
+                onPublished = { navController.goTab(Screen.Trips, role) },
+                onNavigateToTrips = { navController.goTab(Screen.Trips, role) },
+                onNavigateToProfile = { navController.goTab(Screen.Profile, role) }
             )
         }
     }
