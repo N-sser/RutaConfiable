@@ -74,7 +74,6 @@ private val benefits = listOf(
     )
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WelcomeScreen(
     onNavigateToLogin: () -> Unit = {},
@@ -86,150 +85,56 @@ fun WelcomeScreen(
         BenefitInfoSheet(it, onDismiss = { selectedBenefit = null })
     }
 
-    Scaffold(
-        topBar = {
-            WelcomeAppTopBar()
-        },
-        containerColor = Background
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-
-            // Hero Image Card Container with GPS Badge
+    Scaffold(topBar = { WelcomeAppTopBar() }, containerColor = Background) { innerPadding ->
+        ScreenColumn(innerPadding) {
+            // Imagen principal con insignia de GPS
             Box(
-                modifier = Modifier
+                Modifier
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color(0xFFCBD5E1))
             ) {
-                // Background Image
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_background),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    painterResource(R.drawable.ic_launcher_background), null,
+                    Modifier.fillMaxSize(), contentScale = ContentScale.Crop
                 )
+                Box(Modifier.fillMaxSize().background(Color(0x22000000))) // sombra suave
 
-                // Dark overlay tint for visual depth
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0x22000000))
-                )
-
-                // Top Left Live GPS Badge
-                Surface(
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .align(Alignment.TopStart),
-                    color = Color.White,
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("🟠", fontSize = 10.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Monitoreo GPS 24/7 en Ruta",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryLight
-                        )
-                    }
+                PillTag(Modifier.padding(12.dp).align(Alignment.TopStart), color = CardBackground) {
+                    Text("🟠", fontSize = 10.sp)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Monitoreo GPS 24/7 en Ruta", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
                 }
             }
 
-            // Sub-tag
-            Surface(
-                color = Color(0xFFE5EEFF),
-                shape = RoundedCornerShape(6.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AltRoute,
-                        contentDescription = null,
-                        tint = PrimaryLight,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "TRANSPORTE INTERMUNICIPAL Y FLETES",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryLight,
-                        letterSpacing = 0.5.sp
-                    )
-                }
+            PillTag(shape = RoundedCornerShape(6.dp)) {
+                Icon(Icons.Default.AltRoute, null, Modifier.size(14.dp), tint = PrimaryLight)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "TRANSPORTE INTERMUNICIPAL Y FLETES", fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold, color = PrimaryLight, letterSpacing = 0.5.sp
+                )
             }
 
-            // Headline
-            Text(
-                text = "Tu ruta segura para fletes y viajes compartidos",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryLight,
-                fontFamily = FontFamily.Serif,
-                lineHeight = 32.sp
+            ScreenTitle("Tu ruta segura para fletes y viajes compartidos", 26.sp, lineHeight = 32.sp)
+            BodyText(
+                "Conectamos cargadores y pasajeros con transportistas auditados. Disfruta de verificación estricta de antecedentes y SOAT, trazabilidad en vivo y tarifas justas pactadas."
             )
 
-            // Description
-            Text(
-                text = "Conectamos cargadores y pasajeros con transportistas auditados. Disfruta de verificación estricta de antecedentes y SOAT, trazabilidad en vivo y tarifas justas pactadas.",
-                fontSize = 13.sp,
-                color = Color(0xFF44474D),
-                lineHeight = 18.sp
-            )
-
-            // 3 Benefit Cards
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp)) {
                 benefits.forEach { b ->
-                    BenefitCard(
-                        title = b.title,
-                        icon = b.icon,
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedBenefit = b }
-                    )
+                    BenefitCard(b.title, b.icon, Modifier.weight(1f), onClick = { selectedBenefit = b })
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            PrimaryButton("Iniciar Sesión", onNavigateToLogin)
+            SecondaryOutlinedButton("Crear Cuenta Gratis", onNavigateToRegister, leadingIcon = Icons.Default.PersonAdd)
 
-            // Primary Action Buttons
-            PrimaryButton(
-                text = "Iniciar Sesión",
-                onClick = onNavigateToLogin
-            )
-
-            SecondaryOutlinedButton(
-                text = "Crear Cuenta Gratis",
-                onClick = onNavigateToRegister,
-                leadingIcon = Icons.Default.PersonAdd
-            )
-
-            // Terms Footer
             Text(
-                text = "Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.",
-                fontSize = 11.sp,
-                color = Color(0xFF74777E),
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                "Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.",
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                fontSize = 11.sp, color = Outline, textAlign = TextAlign.Center
             )
         }
     }
@@ -240,36 +145,23 @@ fun WelcomeScreen(
 private fun BenefitInfoSheet(info: BenefitInfo, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Background) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(info.icon, null, tint = Secondary, modifier = Modifier.size(28.dp))
+                Icon(info.icon, null, Modifier.size(28.dp), tint = Secondary)
                 Spacer(Modifier.width(10.dp))
-                Text(
-                    text = info.title,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryLight,
-                    fontFamily = FontFamily.Serif
-                )
+                ScreenTitle(info.title, 22.sp)
             }
-            Text(info.description, fontSize = 14.sp, color = Color(0xFF44474D), lineHeight = 20.sp)
+            Text(info.description, fontSize = 14.sp, color = OnSurfaceVariant, lineHeight = 20.sp)
             info.points.forEach { point ->
                 Row(verticalAlignment = Alignment.Top) {
-                    Icon(
-                        Icons.Default.CheckCircle, null,
-                        tint = StatusAvailable,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp), tint = StatusAvailable)
                     Spacer(Modifier.width(8.dp))
                     Text(point, fontSize = 13.sp, color = PrimaryLight, lineHeight = 18.sp)
                 }
             }
-            PrimaryButton(text = "Entendido", onClick = onDismiss, trailingIcon = null)
+            PrimaryButton("Entendido", onDismiss, trailingIcon = null)
         }
     }
 }
@@ -277,7 +169,5 @@ private fun BenefitInfoSheet(info: BenefitInfo, onDismiss: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun WelcomeScreenPreview() {
-    RutaConfiableTheme {
-        WelcomeScreen()
-    }
+    RutaConfiableTheme { WelcomeScreen() }
 }

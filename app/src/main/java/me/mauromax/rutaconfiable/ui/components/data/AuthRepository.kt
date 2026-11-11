@@ -1,4 +1,4 @@
-package me.mauromax.rutaconfiable.data
+package me.mauromax.rutaconfiable.ui.components.data
 
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth

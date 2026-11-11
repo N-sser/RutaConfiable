@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
+import me.mauromax.rutaconfiable.ui.components.AppCard
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StatusTag
 import me.mauromax.rutaconfiable.ui.theme.*
@@ -149,17 +150,6 @@ fun ProfileScreen(
             else trips.forEach { TripRow(it) }
         }
     }
-}
-
-@Composable
-private fun AppCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        modifier = modifier,
-        color = CardBackground,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, OutlineVariant),
-        shadowElevation = 1.dp
-    ) { Column(Modifier.padding(14.dp), content = content) }
 }
 
 @Composable

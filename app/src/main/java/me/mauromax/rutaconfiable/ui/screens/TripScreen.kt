@@ -30,8 +30,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.data.TripRepository
+import me.mauromax.rutaconfiable.ui.components.data.TripRepository
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
+import me.mauromax.rutaconfiable.ui.components.AppCard
+import me.mauromax.rutaconfiable.ui.components.AppSwitch
 import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
@@ -114,7 +116,7 @@ fun TripScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Búsqueda
-            TripBox {
+            AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
                 AppOutlinedTextField(origin, { origin = it }, label = "En origen",
                     leadingIcon = Icons.Default.LocationOn,
                     trailingIcon = { Icon(Icons.Default.GpsFixed, null, tint = Outline) })
@@ -128,7 +130,7 @@ fun TripScreen(
             }
 
             // Filtros
-            TripBox {
+            AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                     Text("FILTROS DE CAPACIDAD Y TRAYECTO", fontSize = 10.sp,
                         fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
@@ -176,7 +178,7 @@ fun TripScreen(
             if (selected != null) {
                 TripDetailCard(selected)
             } else {
-                TripBox {
+                AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
                     Icon(Icons.Default.Map, null, Modifier.size(32.dp).align(Alignment.CenterHorizontally), tint = Outline)
                     Text(
                         if (trips.isEmpty()) "Aún no hay viajes publicados."
@@ -437,24 +439,9 @@ private fun ToggleBox(
         Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
             Icon(icon, null, Modifier.size(18.dp), tint = Secondary)
             Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-            Switch(
-                checked = checked, onCheckedChange = onChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = CardBackground, checkedTrackColor = SecondaryContainer,
-                    uncheckedThumbColor = CardBackground, uncheckedTrackColor = Outline
-                )
-            )
+            AppSwitch(checked, onChange)
         }
     }
-}
-
-@Composable
-private fun TripBox(content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = CardBackground, shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, OutlineVariant), shadowElevation = 1.dp
-    ) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content) }
 }
 
 @Preview(showBackground = true)

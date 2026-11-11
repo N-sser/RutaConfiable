@@ -18,9 +18,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.data.TripRepository
+import me.mauromax.rutaconfiable.ui.components.data.TripRepository
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
+import me.mauromax.rutaconfiable.ui.components.AppSwitch
 import me.mauromax.rutaconfiable.ui.components.CardSectionContainer
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
@@ -218,13 +219,7 @@ fun LoadsScreen(
 private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
         Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = PrimaryLight)
-        Switch(
-            checked = checked, onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = CardBackground, checkedTrackColor = SecondaryContainer,
-                uncheckedThumbColor = CardBackground, uncheckedTrackColor = Outline
-            )
-        )
+        AppSwitch(checked, onChange)
     }
 }
 
