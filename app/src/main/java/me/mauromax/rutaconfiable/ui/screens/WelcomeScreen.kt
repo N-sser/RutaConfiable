@@ -96,10 +96,17 @@ fun WelcomeScreen(
                     .background(PrimaryDark)
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.logo),
+                    painter = painterResource(id = R.drawable.ic_launcher_background),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
+                )
+
+                // Dark overlay tint for visual depth
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0x22000000))
                 )
                 Box(Modifier.fillMaxSize().background(Color(0x22000000))) // sombra suave
 
@@ -147,23 +154,36 @@ fun WelcomeScreen(
 private fun BenefitInfoSheet(info: BenefitInfo, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Background) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(info.icon, null, Modifier.size(28.dp), tint = Secondary)
+                Icon(info.icon, null, tint = Secondary, modifier = Modifier.size(28.dp))
                 Spacer(Modifier.width(10.dp))
-                ScreenTitle(info.title, 22.sp)
+                Text(
+                    text = info.title,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryLight,
+                    fontFamily = FontFamily.Serif
+                )
             }
-            Text(info.description, fontSize = 14.sp, color = OnSurfaceVariant, lineHeight = 20.sp)
+            Text(info.description, fontSize = 14.sp, color = Color(0xFF44474D), lineHeight = 20.sp)
             info.points.forEach { point ->
                 Row(verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp), tint = StatusAvailable)
+                    Icon(
+                        Icons.Default.CheckCircle, null,
+                        tint = StatusAvailable,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text(point, fontSize = 13.sp, color = PrimaryLight, lineHeight = 18.sp)
                 }
             }
-            PrimaryButton("Entendido", onDismiss, trailingIcon = null)
+            PrimaryButton(text = "Entendido", onClick = onDismiss, trailingIcon = null)
         }
     }
 }
