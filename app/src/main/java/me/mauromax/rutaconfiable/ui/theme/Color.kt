@@ -45,6 +45,12 @@ val StatusBookedBg = Color(0xFFFEE2E2)
 val StatusPending = Color(0xFFD97706)
 val StatusPendingBg = Color(0xFFFEF3C7)
 
+// Registration & Login
+val RoleSelectorBackground = Color(0xFFEFF4FF)
+val FormBackground = Color(0xFFE5EEFF)
+val TextSecondary = Color(0xFF44474D)
+val TextMuted = Color(0xFF74777E)
+
 // Colores adicionales
 val CardBackground = Color(0xFFFFFFFF)
 val SurfaceSoft = Color(0xFFEFF4FF)

@@ -27,7 +27,7 @@ fun LoginScreen(
     onBackClick: () -> Unit = {},
     onLoginSuccess: (role: RegistrationRole) -> Unit = {},
     onForgotPasswordClick: () -> Unit = {},
-    onRegisterClick: () -> Unit = {}
+    onRegisterClick: (role: RegistrationRole) -> Unit = {}
 ) {
     var isClient by remember { mutableStateOf(false) }
     var identifier by remember { mutableStateOf("") }
@@ -108,7 +108,9 @@ fun LoginScreen(
             }
 
             Surface(
-                Modifier.fillMaxWidth().clickable { onRegisterClick() },
+                Modifier.fillMaxWidth().clickable {
+                    onRegisterClick(if (isClient) RegistrationRole.CLIENT else RegistrationRole.DRIVER)
+                },
                 color = SurfaceSoft,
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, OutlineVariant)
