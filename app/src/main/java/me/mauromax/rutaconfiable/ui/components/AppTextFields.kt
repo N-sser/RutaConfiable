@@ -1,7 +1,6 @@
 package me.mauromax.rutaconfiable.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -26,11 +24,11 @@ import me.mauromax.rutaconfiable.ui.theme.*
 @Composable
 fun customTextFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = PrimaryLight,
-    unfocusedBorderColor = Color(0xFFC4C6CE),
+    unfocusedBorderColor = OutlineVariant,
     focusedLabelColor = PrimaryLight,
-    unfocusedLabelColor = Color(0xFF74777E),
+    unfocusedLabelColor = Outline,
     focusedLeadingIconColor = PrimaryLight,
-    unfocusedLeadingIconColor = Color(0xFF74777E)
+    unfocusedLeadingIconColor = Outline
 )
 
 @Composable
@@ -42,15 +40,17 @@ fun AppOutlinedTextField(
     leadingIcon: ImageVector? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    singleLine: Boolean = true
+    singleLine: Boolean = true,
+    visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = if (label != null) { { Text(label) } } else null,
         placeholder = { Text(placeholder) },
-        leadingIcon = if (leadingIcon != null) { { Icon(leadingIcon, contentDescription = null) } } else null,
+        leadingIcon = if (leadingIcon != null) { { Icon(leadingIcon, null) } } else null,
         trailingIcon = trailingIcon,
+        visualTransformation = visualTransformation,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = customTextFieldColors(),
@@ -66,27 +66,20 @@ fun PasswordTextField(
     placeholder: String = "Mínimo 8 caracteres",
     modifier: Modifier = Modifier
 ) {
-    var passwordVisible by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = { Text(placeholder) },
-        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+    AppOutlinedTextField(
+        value, onValueChange, label, placeholder, Icons.Default.Lock,
         trailingIcon = {
-            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+            IconButton(onClick = { visible = !visible }) {
                 Icon(
-                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = if (passwordVisible) "Ocultar" else "Mostrar"
+                    if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    if (visible) "Ocultar" else "Mostrar"
                 )
             }
         },
-        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = customTextFieldColors(),
-        singleLine = true
+        modifier = modifier,
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation()
     )
 }
 
@@ -105,16 +98,13 @@ fun PhoneWithCountrySelectorField(
         Surface(
             modifier = Modifier.height(56.dp),
             shape = RoundedCornerShape(8.dp),
-            color = Color(0xFFE5EEFF),
-            border = BorderStroke(1.dp, Color(0xFFC4C6CE))
+            color = SurfaceMuted,
+            border = BorderStroke(1.dp, OutlineVariant)
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("🇨🇴 +57", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-                Spacer(modifier = Modifier.width(2.dp))
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = PrimaryLight)
+                Spacer(Modifier.width(2.dp))
+                Icon(Icons.Default.ArrowDropDown, null, tint = PrimaryLight)
             }
         }
 
@@ -122,7 +112,7 @@ fun PhoneWithCountrySelectorField(
             value = phoneValue,
             onValueChange = onPhoneChange,
             placeholder = { Text(placeholderText, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Phone, null) },
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(8.dp),
             colors = customTextFieldColors(),

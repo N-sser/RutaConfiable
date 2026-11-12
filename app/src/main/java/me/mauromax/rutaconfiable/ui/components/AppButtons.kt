@@ -152,3 +152,19 @@ fun RoleOptionButton(
         }
     }
 }
+
+/** Selector con 2 o más opciones (roles, pestañas...). `onSelect` recibe el índice elegido. */
+@Composable
+fun SegmentedSelector(
+    options: List<Pair<String, ImageVector>>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit
+) {
+    Surface(Modifier.fillMaxWidth(), color = SurfaceSoft, shape = RoundedCornerShape(12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(4.dp)) {
+            options.forEachIndexed { i, (text, icon) ->
+                RoleOptionButton(text, icon, i == selectedIndex, Modifier.weight(1f)) { onSelect(i) }
+            }
+        }
+    }
+}

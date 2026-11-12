@@ -1,4 +1,4 @@
-package me.mauromax.rutaconfiable.data
+package me.mauromax.rutaconfiable.ui.components.data
 
 import androidx.compose.runtime.mutableStateListOf
 import me.mauromax.rutaconfiable.ui.screens.AvailableTrip

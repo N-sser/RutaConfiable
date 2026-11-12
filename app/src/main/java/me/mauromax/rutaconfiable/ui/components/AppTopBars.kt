@@ -1,6 +1,5 @@
 package me.mauromax.rutaconfiable.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,12 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.mauromax.rutaconfiable.ui.theme.*
 
+/** Barra superior: fondo + fila con el contenido a izquierda y derecha. */
 @Composable
-fun WelcomeAppTopBar() {
+private fun TopBarRow(horizontal: Dp, vertical: Dp, content: @Composable RowScope.() -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
@@ -30,57 +32,38 @@ fun WelcomeAppTopBar() {
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = horizontal, vertical = vertical),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = PrimaryLight
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocalShipping,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.padding(6.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Ruta Confiable",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif,
-                    color = PrimaryLight
-                )
-            }
+            horizontalArrangement = Arrangement.SpaceBetween,
+            content = content
+        )
+    }
+}
 
-            Surface(
-                color = Color(0xFFE5EEFF),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, Color(0xFFC4C6CE))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Language,
-                        contentDescription = null,
-                        tint = PrimaryLight,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "ES",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryLight
-                    )
-                }
-            }
+/** Icono del camión + nombre de la app. */
+@Composable
+private fun Logo(size: Dp, textSize: TextUnit) {
+    Surface(Modifier.size(size), shape = RoundedCornerShape(8.dp), color = PrimaryLight) {
+        Icon(Icons.Default.LocalShipping, null, Modifier.padding(size / 6), tint = Color.White)
+    }
+    Spacer(Modifier.width(size / 4))
+    Text(
+        "Ruta Confiable", fontSize = textSize, fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Serif, color = PrimaryLight
+    )
+}
+
+@Composable
+fun WelcomeAppTopBar() {
+    TopBarRow(horizontal = 16.dp, vertical = 10.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) { Logo(36.dp, 20.sp) }
+        PillTag(
+            color = SurfaceMuted, bordered = true,
+            padding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Icon(Icons.Default.Language, null, Modifier.size(14.dp), tint = PrimaryLight)
+            Spacer(Modifier.width(6.dp))
+            Text("ES", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
         }
     }
 }
@@ -92,79 +75,32 @@ fun StandardAppTopBar(
     showHelpIcon: Boolean = false,
     showSecurityBadge: Boolean = true
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (onBackClick != null) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-                Surface(
-                    modifier = Modifier.size(32.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = PrimaryLight
-                ) {
+    TopBarRow(horizontal = 12.dp, vertical = 8.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onBackClick != null) {
+                IconButton(onClick = onBackClick) {
                     Icon(
-                        imageVector = Icons.Default.LocalShipping,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.padding(5.dp)
+                        Icons.AutoMirrored.Filled.ArrowBack, "Volver",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Ruta Confiable",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif,
-                    color = PrimaryLight
-                )
+            }
+            Logo(32.dp, 18.sp)
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (stepTagText != null) {
+                PillTag(color = SurfaceMuted, bordered = true) {
+                    Text(stepTagText, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                }
+            } else if (showSecurityBadge) {
+                SecurityBadge()
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (stepTagText != null) {
-                    Surface(
-                        color = Color(0xFFE5EEFF),
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, Color(0xFFC4C6CE))
-                    ) {
-                        Text(
-                            text = stepTagText,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryLight
-                        )
-                    }
-                } else if (showSecurityBadge) {
-                    SecurityBadge()
-                }
-
-                if (showHelpIcon) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    IconButton(onClick = { }) {
-                        Icon(
-                            imageVector = Icons.Default.HelpOutline,
-                            contentDescription = "Ayuda",
-                            tint = PrimaryLight
-                        )
-                    }
+            if (showHelpIcon) {
+                Spacer(Modifier.width(6.dp))
+                IconButton(onClick = { }) {
+                    Icon(Icons.Default.HelpOutline, "Ayuda", tint = PrimaryLight)
                 }
             }
         }

@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-import me.mauromax.rutaconfiable.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
 
 data class RegistrationUiState(
     val currentRole: RegistrationRole = RegistrationRole.DRIVER,

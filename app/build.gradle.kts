@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.icons)
     implementation("com.google.firebase:firebase-firestore")
+    implementation(libs.androidx.compose.ui.text)
     // Necesario para Task.await() (kotlinx.coroutines.tasks.await)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
