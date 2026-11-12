@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.mauromax.rutaconfiable.ui.components.*
 import me.mauromax.rutaconfiable.ui.theme.*
+import me.mauromax.rutaconfiable.data.AuthRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +36,10 @@ fun ForgotPasswordStep1Screen(
 ) {
     var recoveryMethod by remember { mutableStateOf("SMS") }
     var phoneNumber by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -139,10 +145,37 @@ fun ForgotPasswordStep1Screen(
                     // Security Advice Box
                     SecurityAdviceBox()
 
+                    if (errorMessage != null) {
+                        Text(text = errorMessage!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    }
+                    if (successMessage != null) {
+                        Text(text = successMessage!!, color = Color(0xFF006837), fontSize = 12.sp)
+                    }
+
                     // Action Buttons
                     PrimaryButton(
-                        text = "Enviar código de recuperación",
-                        onClick = onSendCodeSuccess
+                        text = if (isLoading) "Enviando..." else "Enviar correo de recuperación",
+                        onClick = {
+                            if (phoneNumber.isBlank()) {
+                                errorMessage = "Por favor ingresa tu correo electrónico"
+                            } else {
+                                errorMessage = null
+                                successMessage = null
+                                isLoading = true
+                                scope.launch {
+                                    AuthRepository.sendPasswordReset(phoneNumber.trim())
+                                        .onSuccess {
+                                            isLoading = false
+                                            successMessage = "Correo de restablecimiento enviado con éxito."
+                                            onSendCodeSuccess()
+                                        }
+                                        .onFailure { e ->
+                                            isLoading = false
+                                            errorMessage = AuthRepository.friendlyError(e)
+                                        }
+                                }
+                            }
+                        }
                     )
 
                     SecondaryOutlinedButton(

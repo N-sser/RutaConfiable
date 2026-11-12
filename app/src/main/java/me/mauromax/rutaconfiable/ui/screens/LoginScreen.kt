@@ -1,3 +1,4 @@
+
 package me.mauromax.rutaconfiable.ui.screens
 
 import androidx.compose.foundation.BorderStroke
@@ -7,7 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -17,31 +17,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import me.mauromax.rutaconfiable.data.AuthRepository
 import me.mauromax.rutaconfiable.ui.components.*
 import me.mauromax.rutaconfiable.ui.theme.*
-import kotlinx.coroutines.launch
 
-// Credenciales de demostración (reemplazar por validación contra el backend)
-private val DEMO_USERS = listOf("3109876543", "usuario@ejemplo.com", "admin", "driver", "client")
-private val DEMO_PASSWORD = "123"
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onBackClick: () -> Unit = {},
-    onLoginSuccess: (role: String) -> Unit = {},
+    onLoginSuccess: (RegistrationRole) -> Unit = {},
     onForgotPasswordClick: () -> Unit = {},
-    onRegisterClick: () -> Unit = {}
+    onRegisterClick: (RegistrationRole) -> Unit = {}
 ) {
-    var selectedRole by remember { mutableStateOf("Conductor") }
+    var selectedRole by remember {
+        mutableStateOf(RegistrationRole.DRIVER)
+    }
+
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberDevice by remember { mutableStateOf(true) }
-    var loginError by remember { mutableStateOf(false) }
+
+    var errorMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    var isLoading by remember {
+        mutableStateOf(false)
+    }
+
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -53,6 +59,7 @@ fun LoginScreen(
         },
         containerColor = Background
     ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -62,7 +69,6 @@ fun LoginScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // Title Header
             Text(
                 text = "Iniciar Sesión",
                 fontSize = 26.sp,
@@ -78,7 +84,6 @@ fun LoginScreen(
                 lineHeight = 18.sp
             )
 
-            // Segmented Role Selector
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFFEFF4FF),
@@ -92,21 +97,25 @@ fun LoginScreen(
                     RoleOptionButton(
                         text = "Conductor / Aliado",
                         icon = Icons.Default.LocalShipping,
-                        isSelected = selectedRole == "Conductor",
+                        isSelected = selectedRole == RegistrationRole.DRIVER,
                         modifier = Modifier.weight(1f),
-                        onClick = { selectedRole = "Conductor" }
+                        onClick = {
+                            selectedRole = RegistrationRole.DRIVER
+                        }
                     )
+
                     RoleOptionButton(
                         text = "Cliente / Pasajero",
                         icon = Icons.Default.Person,
-                        isSelected = selectedRole == "Cliente",
+                        isSelected = selectedRole == RegistrationRole.CLIENT,
                         modifier = Modifier.weight(1f),
-                        onClick = { selectedRole = "Cliente" }
+                        onClick = {
+                            selectedRole = RegistrationRole.CLIENT
+                        }
                     )
                 }
             }
 
-            // Form Card
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = Color.White,
@@ -118,23 +127,26 @@ fun LoginScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Identifier Field (Phone / Email)
+
                     Column {
                         Text(
-                            text = "Correo electrónico o celular",
+                            text = "Correo electrónico",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = PrimaryLight,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
+
                         PhoneWithCountrySelectorField(
                             phoneValue = identifier,
-                            onPhoneChange = { identifier = it; loginError = false },
-                            placeholderText = "Ej. 310 987 6543 o usuario@ejemplo.com"
+                            onPhoneChange = {
+                                identifier = it
+                                errorMessage = null
+                            },
+                            placeholderText = "usuario@ejemplo.com"
                         )
                     }
 
-                    // Password Field
                     Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -147,33 +159,53 @@ fun LoginScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 color = PrimaryLight
                             )
+
                             Text(
                                 text = "¿Olvidaste tu contraseña?",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Secondary,
-                                modifier = Modifier.clickable { onForgotPasswordClick() }
+                                modifier = Modifier.clickable {
+                                    onForgotPasswordClick()
+                                }
                             )
                         }
+
                         Spacer(modifier = Modifier.height(4.dp))
+
                         PasswordTextField(
                             value = password,
-                            onValueChange = { password = it; loginError = false },
+                            onValueChange = {
+                                password = it
+                                errorMessage = null
+                            },
                             label = "Tu clave de acceso",
                             placeholder = "Ingresa tu contraseña"
                         )
                     }
 
-                    // Remember Device Checkbox
+                    if (errorMessage != null) {
+                        Text(
+                            text = errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Checkbox(
                             checked = rememberDevice,
-                            onCheckedChange = { rememberDevice = it },
-                            colors = CheckboxDefaults.colors(checkedColor = PrimaryLight)
+                            onCheckedChange = {
+                                rememberDevice = it
+                            },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = PrimaryLight
+                            )
                         )
+
                         Text(
                             text = "Recordar mis datos en este dispositivo",
                             fontSize = 12.sp,
@@ -181,43 +213,61 @@ fun LoginScreen(
                         )
                     }
 
-                    // Submit Action Button
-                    if (loginError) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = ErrorContainer,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "Usuario o contraseña incorrecta",
-                                modifier = Modifier.padding(12.dp),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = OnErrorContainer
-                            )
-                        }
-                    }
-
                     PrimaryButton(
-                        text = "Ingresar",
+                        text = if (isLoading) {
+                            "Ingresando..."
+                        } else {
+                            "Ingresar"
+                        },
                         onClick = {
-                            val valid = identifier.filter { !it.isWhitespace() }.lowercase() in DEMO_USERS &&
-                                    password == DEMO_PASSWORD
-                            if (valid) {
-                                onLoginSuccess(selectedRole)
+                            if (isLoading) return@PrimaryButton
+
+                            if (identifier.isBlank() || password.isBlank()) {
+                                errorMessage =
+                                    "Por favor completa el correo y la contraseña"
                             } else {
-                                loginError = true
+                                errorMessage = null
+                                isLoading = true
+
+                                scope.launch {
+                                    AuthRepository.login(
+                                        identifier.trim(),
+                                        password
+                                    ).onSuccess {
+
+                                        val roleStr =
+                                            AuthRepository.getRole()
+
+                                        val roleEnum =
+                                            if (roleStr == "client") {
+                                                RegistrationRole.CLIENT
+                                            } else {
+                                                RegistrationRole.DRIVER
+                                            }
+
+                                        isLoading = false
+                                        onLoginSuccess(roleEnum)
+
+                                    }.onFailure { error ->
+
+                                        isLoading = false
+
+                                        errorMessage =
+                                            AuthRepository.friendlyError(error)
+                                    }
+                                }
                             }
                         }
                     )
                 }
             }
 
-
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onRegisterClick() },
+                    .clickable {
+                        onRegisterClick(selectedRole)
+                    },
                 color = Color(0xFFEFF4FF),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color(0xFFC4C6CE))
@@ -232,6 +282,7 @@ fun LoginScreen(
                         fontSize = 13.sp,
                         color = Color(0xFF44474D)
                     )
+
                     Text(
                         text = "Regístrate aquí",
                         fontSize = 13.sp,
@@ -243,18 +294,9 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Encryption Badge
             TlsEncryptionBadge(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    RutaConfiableTheme {
-        LoginScreen()
     }
 }

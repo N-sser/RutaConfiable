@@ -1,0 +1,1765 @@
+Index: app/build.gradle.kts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>plugins {\r\n    alias(libs.plugins.android.application)\r\n    alias(libs.plugins.kotlin.compose)\r\n}\r\n\r\nandroid {\r\n    namespace = \"me.mauromax.rutaconfiable\"\r\n    compileSdk {\r\n        version = release(37)\r\n    }\r\n\r\n    defaultConfig {\r\n        applicationId = \"me.mauromax.rutaconfiable\"\r\n        minSdk = 26\r\n        targetSdk = 37\r\n        versionCode = 1\r\n        versionName = \"1.0\"\r\n\r\n        testInstrumentationRunner = \"androidx.test.runner.AndroidJUnitRunner\"\r\n    }\r\n\r\n    buildTypes {\r\n        release {\r\n            optimization {\r\n                enable = false\r\n            }\r\n        }\r\n    }\r\n    compileOptions {\r\n        sourceCompatibility = JavaVersion.VERSION_11\r\n        targetCompatibility = JavaVersion.VERSION_11\r\n    }\r\n    buildFeatures {\r\n        compose = true\r\n    }\r\n}\r\n\r\ndependencies {\r\n    implementation(platform(libs.androidx.compose.bom))\r\n    implementation(libs.androidx.activity.compose)\r\n    implementation(libs.androidx.compose.material3)\r\n    implementation(libs.androidx.compose.icons)\r\n    implementation(libs.navigation.compose)\r\n    implementation(libs.androidx.compose.ui)\r\n    implementation(libs.androidx.compose.ui.graphics)\r\n    implementation(libs.androidx.compose.ui.tooling.preview)\r\n    implementation(libs.androidx.core.ktx)\r\n    implementation(libs.androidx.lifecycle.runtime.ktx)\r\n    testImplementation(libs.junit)\r\n    androidTestImplementation(platform(libs.androidx.compose.bom))\r\n    androidTestImplementation(libs.androidx.compose.ui.test.junit4)\r\n    androidTestImplementation(libs.androidx.espresso.core)\r\n    androidTestImplementation(libs.androidx.junit)\r\n    debugImplementation(libs.androidx.compose.ui.test.manifest)\r\n    debugImplementation(libs.androidx.compose.ui.tooling)\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+--- a/app/build.gradle.kts	(revision 74328ae60b5eb6f728f45f89247c1e625b2bea63)
++++ b/app/build.gradle.kts	(date 1794494958485)
+@@ -1,6 +1,7 @@
+ plugins {
+     alias(libs.plugins.android.application)
+     alias(libs.plugins.kotlin.compose)
++    id("com.google.gms.google-services") version "4.4.4" apply false
+ }
+ 
+ android {
+@@ -52,5 +53,6 @@
+     androidTestImplementation(libs.androidx.espresso.core)
+     androidTestImplementation(libs.androidx.junit)
+     debugImplementation(libs.androidx.compose.ui.test.manifest)
++    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
+     debugImplementation(libs.androidx.compose.ui.tooling)
+ }
+Index: app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Color.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package me.mauromax.rutaconfiable.ui.theme\r\n\r\nimport androidx.compose.ui.graphics.Color\r\n\r\n// Primary - Deep Maritime Navy\r\nval PrimaryDark = Color(0xFF00040E)\r\nval PrimaryLight = Color(0xFF0B1E36)\r\nval OnPrimary = Color(0xFFFFFFFF)\r\nval PrimaryContainer = Color(0xFF0B1E36)\r\nval OnPrimaryContainer = Color(0xFF7586A3)\r\n\r\n// Secondary - Kinetic Amber/Orange\r\nval Secondary = Color(0xFFA14000)\r\nval OnSecondary = Color(0xFFFFFFFF)\r\nval SecondaryContainer = Color(0xFFFF7528)\r\nval OnSecondaryContainer = Color(0xFF5F2200)\r\n\r\n// Tertiary - Waypoint Blue\r\nval Tertiary = Color(0xFF000314)\r\nval OnTertiary = Color(0xFFFFFFFF)\r\nval TertiaryContainer = Color(0xFF00194F)\r\nval OnTertiaryContainer = Color(0xFF4C7EFF)\r\n\r\n// Surface & Background\r\nval Surface = Color(0xFFF8F9FF)\r\nval OnSurface = Color(0xFF0B1C30)\r\nval SurfaceVariant = Color(0xFFD3E4FE)\r\nval OnSurfaceVariant = Color(0xFF44474D)\r\nval Background = Color(0xFFF8F9FF)\r\nval OnBackground = Color(0xFF0B1C30)\r\nval Outline = Color(0xFF74777E)\r\nval OutlineVariant = Color(0xFFC4C6CE)\r\n\r\n// Error\r\nval Error = Color(0xFFBA1A1A)\r\nval OnError = Color(0xFFFFFFFF)\r\nval ErrorContainer = Color(0xFFFFDAD6)\r\nval OnErrorContainer = Color(0xFF93000A)\r\n\r\n// Status Colors\r\nval StatusAvailable = Color(0xFF15803D)\r\nval StatusAvailableBg = Color(0xFFDCFCE7)\r\nval StatusBooked = Color(0xFFDC2626)\r\nval StatusBookedBg = Color(0xFFFEE2E2)\r\nval StatusPending = Color(0xFFD97706)\r\nval StatusPendingBg = Color(0xFFFEF3C7)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Color.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Color.kt
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Color.kt	(revision 74328ae60b5eb6f728f45f89247c1e625b2bea63)
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Color.kt	(date 1794494958498)
+@@ -1,3 +1,4 @@
++
+ package me.mauromax.rutaconfiable.ui.theme
+ 
+ import androidx.compose.ui.graphics.Color
+@@ -44,3 +45,9 @@
+ val StatusBookedBg = Color(0xFFFEE2E2)
+ val StatusPending = Color(0xFFD97706)
+ val StatusPendingBg = Color(0xFFFEF3C7)
++
++// Registration & Login
++val RoleSelectorBackground = Color(0xFFEFF4FF)
++val FormBackground = Color(0xFFE5EEFF)
++val TextSecondary = Color(0xFF44474D)
++val TextMuted = Color(0xFF74777E)
+Index: app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package me.mauromax.rutaconfiable.navigation\r\n\r\nimport androidx.compose.runtime.Composable\r\nimport androidx.navigation.NavHostController\r\nimport androidx.navigation.NavType\r\nimport androidx.navigation.compose.NavHost\r\nimport androidx.navigation.compose.composable\r\nimport androidx.navigation.compose.rememberNavController\r\nimport androidx.navigation.navArgument\r\nimport me.mauromax.rutaconfiable.ui.screens.*\r\n\r\nsealed class Screen(val route: String) {\r\n    object Welcome : Screen(\"welcome\")\r\n    object Login : Screen(\"login\")\r\n    object ForgotPasswordStep1 : Screen(\"forgot_password_step_1\")\r\n    object ForgotPasswordStep2 : Screen(\"forgot_password_step_2\")\r\n\r\n    object Registration : Screen(\"registration/{role}\") {\r\n        fun createRoute(role: String = \"driver\") = \"registration/$role\"\r\n    }\r\n\r\n    object VerificationPending : Screen(\"verification_pending/{role}\") {\r\n        fun createRoute(role: String = \"driver\") = \"verification_pending/$role\"\r\n    }\r\n\r\n    object Profile : Screen(\"profile/{role}\") {\r\n        fun createRoute(role: String = \"driver\") = \"profile/$role\"\r\n    }\r\n}\r\n\r\n@Composable\r\nfun AppNavGraph(\r\n    navController: NavHostController = rememberNavController()\r\n) {\r\n    NavHost(\r\n        navController = navController,\r\n        startDestination = Screen.Welcome.route\r\n    ) {\r\n        // 1. Welcome Screen\r\n        composable(route = Screen.Welcome.route) {\r\n            WelcomeScreen(\r\n                onNavigateToLogin = {\r\n                    navController.navigate(Screen.Login.route)\r\n                },\r\n                onNavigateToRegister = {\r\n                    navController.navigate(Screen.Registration.createRoute(\"driver\"))\r\n                }\r\n            )\r\n        }\r\n\r\n        // 2. Login Screen\r\n        composable(route = Screen.Login.route) {\r\n            LoginScreen(\r\n                onBackClick = {\r\n                    navController.popBackStack()\r\n                },\r\n                onLoginSuccess = {\r\n                    navController.navigate(Screen.Profile.createRoute(\"driver\")) {\r\n                        popUpTo(Screen.Welcome.route) { inclusive = true }\r\n                    }\r\n                },\r\n                onForgotPasswordClick = {\r\n                    navController.navigate(Screen.ForgotPasswordStep1.route)\r\n                },\r\n                onRegisterClick = {\r\n                    navController.navigate(Screen.Registration.createRoute(\"driver\"))\r\n                }\r\n            )\r\n        }\r\n\r\n        // 3. Forgot Password Step 1\r\n        composable(route = Screen.ForgotPasswordStep1.route) {\r\n            ForgotPasswordStep1Screen(\r\n                onBackClick = {\r\n                    navController.popBackStack()\r\n                },\r\n                onSendCodeSuccess = {\r\n                    navController.navigate(Screen.ForgotPasswordStep2.route)\r\n                }\r\n            )\r\n        }\r\n\r\n        // 4. Forgot Password Step 2\r\n        composable(route = Screen.ForgotPasswordStep2.route) {\r\n            ForgotPasswordStep2Screen(\r\n                onBackClick = {\r\n                    navController.popBackStack()\r\n                },\r\n                onResetPasswordSuccess = {\r\n                    navController.navigate(Screen.Login.route) {\r\n                        popUpTo(Screen.Login.route) { inclusive = true }\r\n                    }\r\n                }\r\n            )\r\n        }\r\n\r\n        // 5. Registration Screen\r\n        composable(\r\n            route = Screen.Registration.route,\r\n            arguments = listOf(\r\n                navArgument(\"role\") {\r\n                    type = NavType.StringType\r\n                    defaultValue = \"driver\"\r\n                }\r\n            )\r\n        ) { backStackEntry ->\r\n            val roleArg = backStackEntry.arguments?.getString(\"role\") ?: \"driver\"\r\n            val initialRole = if (roleArg == \"client\") RegistrationRole.CLIENT else RegistrationRole.DRIVER\r\n\r\n            RegistrationScreen(\r\n                initialRole = initialRole,\r\n                onBackClick = {\r\n                    navController.popBackStack()\r\n                },\r\n                onLoginClick = {\r\n                    navController.navigate(Screen.Login.route)\r\n                },\r\n                onRegistrationSubmitted = { submittedRole ->\r\n                    val roleParam = if (submittedRole == RegistrationRole.CLIENT) \"client\" else \"driver\"\r\n                    navController.navigate(Screen.VerificationPending.createRoute(roleParam)) {\r\n                        popUpTo(Screen.Registration.route) {\r\n                            inclusive = true\r\n                        }\r\n                    }\r\n                }\r\n            )\r\n        }\r\n\r\n        // 6. Verification Pending Screen\r\n        composable(\r\n            route = Screen.VerificationPending.route,\r\n            arguments = listOf(\r\n                navArgument(\"role\") {\r\n                    type = NavType.StringType\r\n                    defaultValue = \"driver\"\r\n                }\r\n            )\r\n        ) { backStackEntry ->\r\n            val roleArg = backStackEntry.arguments?.getString(\"role\") ?: \"driver\"\r\n            val role = if (roleArg == \"client\") RegistrationRole.CLIENT else RegistrationRole.DRIVER\r\n\r\n            VerificationPendingScreen(\r\n                role = role,\r\n                onNavigateToProfile = {\r\n                    val roleParam = if (role == RegistrationRole.CLIENT) \"client\" else \"driver\"\r\n                    navController.navigate(Screen.Profile.createRoute(roleParam))\r\n                },\r\n                onResetRegistration = {\r\n                    navController.navigate(Screen.Welcome.route) {\r\n                        popUpTo(0)\r\n                    }\r\n                }\r\n            )\r\n        }\r\n\r\n        // 7. Profile Screen\r\n        composable(\r\n            route = Screen.Profile.route,\r\n            arguments = listOf(\r\n                navArgument(\"role\") {\r\n                    type = NavType.StringType\r\n                    defaultValue = \"driver\"\r\n                }\r\n            )\r\n        ) { backStackEntry ->\r\n            val roleArg = backStackEntry.arguments?.getString(\"role\") ?: \"driver\"\r\n            val role = if (roleArg == \"client\") RegistrationRole.CLIENT else RegistrationRole.DRIVER\r\n\r\n            ProfileScreen(\r\n                role = role,\r\n                onBackToPending = {\r\n                    navController.popBackStack()\r\n                },\r\n                onLogout = {\r\n                    navController.navigate(Screen.Welcome.route) {\r\n                        popUpTo(0)\r\n                    }\r\n                }\r\n            )\r\n        }\r\n    }\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt b/app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt
+--- a/app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt	(revision 74328ae60b5eb6f728f45f89247c1e625b2bea63)
++++ b/app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt	(date 1794494958514)
+@@ -1,5 +1,7 @@
+ package me.mauromax.rutaconfiable.navigation
+ 
++
++
+ import androidx.compose.runtime.Composable
+ import androidx.navigation.NavHostController
+ import androidx.navigation.NavType
+@@ -16,15 +18,18 @@
+     object ForgotPasswordStep2 : Screen("forgot_password_step_2")
+ 
+     object Registration : Screen("registration/{role}") {
+-        fun createRoute(role: String = "driver") = "registration/$role"
++        fun createRoute(role: String = "driver") =
++            "registration/$role"
+     }
+ 
+     object VerificationPending : Screen("verification_pending/{role}") {
+-        fun createRoute(role: String = "driver") = "verification_pending/$role"
++        fun createRoute(role: String = "driver") =
++            "verification_pending/$role"
+     }
+ 
+     object Profile : Screen("profile/{role}") {
+-        fun createRoute(role: String = "driver") = "profile/$role"
++        fun createRoute(role: String = "driver") =
++            "profile/$role"
+     }
+ }
+ 
+@@ -36,65 +41,86 @@
+         navController = navController,
+         startDestination = Screen.Welcome.route
+     ) {
+-        // 1. Welcome Screen
+-        composable(route = Screen.Welcome.route) {
++
++        // Welcome
++        composable(Screen.Welcome.route) {
+             WelcomeScreen(
+                 onNavigateToLogin = {
+                     navController.navigate(Screen.Login.route)
+                 },
+                 onNavigateToRegister = {
+-                    navController.navigate(Screen.Registration.createRoute("driver"))
++                    navController.navigate(
++                        Screen.Registration.createRoute("driver")
++                    )
+                 }
+             )
+         }
+ 
+-        // 2. Login Screen
+-        composable(route = Screen.Login.route) {
++        // Login
++        composable(Screen.Login.route) {
+             LoginScreen(
+                 onBackClick = {
+                     navController.popBackStack()
+                 },
+-                onLoginSuccess = {
+-                    navController.navigate(Screen.Profile.createRoute("driver")) {
+-                        popUpTo(Screen.Welcome.route) { inclusive = true }
++                onLoginSuccess = { selectedRole ->
++
++                    val role = when (selectedRole) {
++                        RegistrationRole.CLIENT -> "client"
++                        RegistrationRole.DRIVER -> "driver"
++                    }
++
++                    navController.navigate(
++                        Screen.Profile.createRoute(role)
++                    ) {
++                        popUpTo(Screen.Welcome.route) {
++                            inclusive = true
++                        }
+                     }
+                 },
+                 onForgotPasswordClick = {
+-                    navController.navigate(Screen.ForgotPasswordStep1.route)
++                    navController.navigate(
++                        Screen.ForgotPasswordStep1.route
++                    )
+                 },
+                 onRegisterClick = {
+-                    navController.navigate(Screen.Registration.createRoute("driver"))
++                    navController.navigate(
++                        Screen.Registration.createRoute("driver")
++                    )
+                 }
+             )
+         }
+ 
+-        // 3. Forgot Password Step 1
+-        composable(route = Screen.ForgotPasswordStep1.route) {
++        // Forgot Password - Step 1
++        composable(Screen.ForgotPasswordStep1.route) {
+             ForgotPasswordStep1Screen(
+                 onBackClick = {
+                     navController.popBackStack()
+                 },
+                 onSendCodeSuccess = {
+-                    navController.navigate(Screen.ForgotPasswordStep2.route)
++                    navController.navigate(
++                        Screen.ForgotPasswordStep2.route
++                    )
+                 }
+             )
+         }
+ 
+-        // 4. Forgot Password Step 2
+-        composable(route = Screen.ForgotPasswordStep2.route) {
++        // Forgot Password - Step 2
++        composable(Screen.ForgotPasswordStep2.route) {
+             ForgotPasswordStep2Screen(
+                 onBackClick = {
+                     navController.popBackStack()
+                 },
+                 onResetPasswordSuccess = {
+                     navController.navigate(Screen.Login.route) {
+-                        popUpTo(Screen.Login.route) { inclusive = true }
++                        popUpTo(Screen.Login.route) {
++                            inclusive = true
++                        }
+                     }
+                 }
+             )
+         }
+ 
+-        // 5. Registration Screen
++        // Registration
+         composable(
+             route = Screen.Registration.route,
+             arguments = listOf(
+@@ -103,9 +129,15 @@
+                     defaultValue = "driver"
+                 }
+             )
+-        ) { backStackEntry ->
+-            val roleArg = backStackEntry.arguments?.getString("role") ?: "driver"
+-            val initialRole = if (roleArg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
++        ) { entry ->
++
++            val roleArg =
++                entry.arguments?.getString("role") ?: "driver"
++
++            val initialRole = when (roleArg) {
++                "client" -> RegistrationRole.CLIENT
++                else -> RegistrationRole.DRIVER
++            }
+ 
+             RegistrationScreen(
+                 initialRole = initialRole,
+@@ -116,8 +148,15 @@
+                     navController.navigate(Screen.Login.route)
+                 },
+                 onRegistrationSubmitted = { submittedRole ->
+-                    val roleParam = if (submittedRole == RegistrationRole.CLIENT) "client" else "driver"
+-                    navController.navigate(Screen.VerificationPending.createRoute(roleParam)) {
++
++                    val role = when (submittedRole) {
++                        RegistrationRole.CLIENT -> "client"
++                        RegistrationRole.DRIVER -> "driver"
++                    }
++
++                    navController.navigate(
++                        Screen.VerificationPending.createRoute(role)
++                    ) {
+                         popUpTo(Screen.Registration.route) {
+                             inclusive = true
+                         }
+@@ -126,7 +165,7 @@
+             )
+         }
+ 
+-        // 6. Verification Pending Screen
++        // Verification Pending
+         composable(
+             route = Screen.VerificationPending.route,
+             arguments = listOf(
+@@ -135,15 +174,28 @@
+                     defaultValue = "driver"
+                 }
+             )
+-        ) { backStackEntry ->
+-            val roleArg = backStackEntry.arguments?.getString("role") ?: "driver"
+-            val role = if (roleArg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
++        ) { entry ->
++
++            val roleArg =
++                entry.arguments?.getString("role") ?: "driver"
++
++            val role = when (roleArg) {
++                "client" -> RegistrationRole.CLIENT
++                else -> RegistrationRole.DRIVER
++            }
+ 
+             VerificationPendingScreen(
+                 role = role,
+                 onNavigateToProfile = {
+-                    val roleParam = if (role == RegistrationRole.CLIENT) "client" else "driver"
+-                    navController.navigate(Screen.Profile.createRoute(roleParam))
++
++                    val roleParam = when (role) {
++                        RegistrationRole.CLIENT -> "client"
++                        RegistrationRole.DRIVER -> "driver"
++                    }
++
++                    navController.navigate(
++                        Screen.Profile.createRoute(roleParam)
++                    )
+                 },
+                 onResetRegistration = {
+                     navController.navigate(Screen.Welcome.route) {
+@@ -153,7 +205,7 @@
+             )
+         }
+ 
+-        // 7. Profile Screen
++        // Profile
+         composable(
+             route = Screen.Profile.route,
+             arguments = listOf(
+@@ -162,9 +214,15 @@
+                     defaultValue = "driver"
+                 }
+             )
+-        ) { backStackEntry ->
+-            val roleArg = backStackEntry.arguments?.getString("role") ?: "driver"
+-            val role = if (roleArg == "client") RegistrationRole.CLIENT else RegistrationRole.DRIVER
++        ) { entry ->
++
++            val roleArg =
++                entry.arguments?.getString("role") ?: "driver"
++
++            val role = when (roleArg) {
++                "client" -> RegistrationRole.CLIENT
++                else -> RegistrationRole.DRIVER
++            }
+ 
+             ProfileScreen(
+                 role = role,
+Index: app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package me.mauromax.rutaconfiable.ui.screens\r\n\r\nimport androidx.compose.foundation.BorderStroke\r\nimport androidx.compose.foundation.background\r\nimport androidx.compose.foundation.clickable\r\nimport androidx.compose.foundation.layout.*\r\nimport androidx.compose.foundation.rememberScrollState\r\nimport androidx.compose.foundation.shape.CircleShape\r\nimport androidx.compose.foundation.shape.RoundedCornerShape\r\nimport androidx.compose.foundation.verticalScroll\r\nimport androidx.compose.material.icons.Icons\r\nimport androidx.compose.material.icons.automirrored.filled.ArrowForward\r\nimport androidx.compose.material.icons.filled.*\r\nimport androidx.compose.material3.*\r\nimport androidx.compose.runtime.*\r\nimport androidx.compose.ui.Alignment\r\nimport androidx.compose.ui.Modifier\r\nimport androidx.compose.ui.graphics.Color\r\nimport androidx.compose.ui.text.font.FontFamily\r\nimport androidx.compose.ui.text.font.FontWeight\r\nimport androidx.compose.ui.tooling.preview.Preview\r\nimport androidx.compose.ui.unit.dp\r\nimport androidx.compose.ui.unit.sp\r\nimport me.mauromax.rutaconfiable.ui.components.*\r\nimport me.mauromax.rutaconfiable.ui.theme.*\r\n\r\nenum class RegistrationRole {\r\n    DRIVER,\r\n    CLIENT\r\n}\r\n\r\n@OptIn(ExperimentalMaterial3Api::class)\r\n@Composable\r\nfun RegistrationScreen(\r\n    initialRole: RegistrationRole = RegistrationRole.DRIVER,\r\n    onRegistrationSubmitted: (role: RegistrationRole) -> Unit = {},\r\n    onBackClick: () -> Unit = {},\r\n    onLoginClick: () -> Unit = {}\r\n) {\r\n    var currentRole by remember { mutableStateOf(initialRole) }\r\n\r\n    Scaffold(\r\n        topBar = {\r\n            StandardAppTopBar(\r\n                onBackClick = onBackClick,\r\n                showSecurityBadge = true\r\n            )\r\n        },\r\n        containerColor = Background\r\n    ) { innerPadding ->\r\n        Column(\r\n            modifier = Modifier\r\n                .fillMaxSize()\r\n                .padding(innerPadding)\r\n                .verticalScroll(rememberScrollState())\r\n                .padding(horizontal = 16.dp, vertical = 12.dp),\r\n            verticalArrangement = Arrangement.spacedBy(16.dp)\r\n        ) {\r\n\r\n            // Role Switcher (Conductor / Cliente)\r\n            Surface(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                color = Color(0xFFEFF4FF),\r\n                shape = RoundedCornerShape(12.dp)\r\n            ) {\r\n                Row(\r\n                    modifier = Modifier\r\n                        .fillMaxWidth()\r\n                        .padding(4.dp)\r\n                ) {\r\n                    RoleOptionButton(\r\n                        text = \"Conductor\",\r\n                        icon = Icons.Default.LocalShipping,\r\n                        isSelected = currentRole == RegistrationRole.DRIVER,\r\n                        modifier = Modifier.weight(1f),\r\n                        onClick = { currentRole = RegistrationRole.DRIVER }\r\n                    )\r\n                    RoleOptionButton(\r\n                        text = \"Cliente\",\r\n                        icon = Icons.Default.Person,\r\n                        isSelected = currentRole == RegistrationRole.CLIENT,\r\n                        modifier = Modifier.weight(1f),\r\n                        onClick = { currentRole = RegistrationRole.CLIENT }\r\n                    )\r\n                }\r\n            }\r\n\r\n            // Form content depending on selected role\r\n            if (currentRole == RegistrationRole.DRIVER) {\r\n                DriverRegistrationFormContent(\r\n                    onSubmit = { onRegistrationSubmitted(RegistrationRole.DRIVER) }\r\n                )\r\n            } else {\r\n                ClientRegistrationFormContent(\r\n                    onSubmit = { onRegistrationSubmitted(RegistrationRole.CLIENT) }\r\n                )\r\n            }\r\n\r\n            // Shared Footer Link\r\n            Row(\r\n                modifier = Modifier\r\n                    .fillMaxWidth()\r\n                    .padding(vertical = 4.dp),\r\n                horizontalArrangement = Arrangement.Center,\r\n                verticalAlignment = Alignment.CenterVertically\r\n            ) {\r\n                Text(\r\n                    text = \"¿Ya tienes una cuenta registrada? \",\r\n                    fontSize = 13.sp,\r\n                    color = Color(0xFF44474D)\r\n                )\r\n                Text(\r\n                    text = \"Iniciar sesión\",\r\n                    fontSize = 13.sp,\r\n                    fontWeight = FontWeight.Bold,\r\n                    color = Secondary,\r\n                    modifier = Modifier.clickable { onLoginClick() }\r\n                )\r\n            }\r\n\r\n            Spacer(modifier = Modifier.height(16.dp))\r\n        }\r\n    }\r\n}\r\n\r\n// CLIENT REGISTRATION FORM CONTENT\r\n@OptIn(ExperimentalMaterial3Api::class)\r\n@Composable\r\nprivate fun ClientRegistrationFormContent(\r\n    onSubmit: () -> Unit\r\n) {\r\n    var fullName by remember { mutableStateOf(\"\") }\r\n    var email by remember { mutableStateOf(\"\") }\r\n    var phone by remember { mutableStateOf(\"\") }\r\n    var password by remember { mutableStateOf(\"\") }\r\n    var documentType by remember { mutableStateOf(\"C.C.\") }\r\n    var documentNumber by remember { mutableStateOf(\"\") }\r\n    var docDropdownExpanded by remember { mutableStateOf(false) }\r\n    var termsAccepted by remember { mutableStateOf(false) }\r\n    var whatsappAlertsAccepted by remember { mutableStateOf(false) }\r\n\r\n    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {\r\n\r\n        // Header Info\r\n        Row(\r\n            modifier = Modifier.fillMaxWidth(),\r\n            horizontalArrangement = Arrangement.SpaceBetween,\r\n            verticalAlignment = Alignment.CenterVertically\r\n        ) {\r\n            Surface(\r\n                color = Color(0xFFE5EEFF),\r\n                shape = RoundedCornerShape(16.dp)\r\n            ) {\r\n                Row(\r\n                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),\r\n                    verticalAlignment = Alignment.CenterVertically\r\n                ) {\r\n                    Icon(\r\n                        imageVector = Icons.Default.Person,\r\n                        contentDescription = null,\r\n                        tint = Secondary,\r\n                        modifier = Modifier.size(14.dp)\r\n                    )\r\n                    Spacer(modifier = Modifier.width(4.dp))\r\n                    Text(\r\n                        text = \"REGISTRO DE CLIENTE\",\r\n                        fontSize = 11.sp,\r\n                        fontWeight = FontWeight.Bold,\r\n                        color = PrimaryLight\r\n                    )\r\n                }\r\n            }\r\n\r\n            Surface(\r\n                color = Color(0xFFE5EEFF),\r\n                shape = RoundedCornerShape(16.dp)\r\n            ) {\r\n                Text(\r\n                    text = \"Paso 1 de 2\",\r\n                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),\r\n                    fontSize = 11.sp,\r\n                    fontWeight = FontWeight.Bold,\r\n                    color = PrimaryLight\r\n                )\r\n            }\r\n        }\r\n\r\n        Text(\r\n            text = \"Crea tu cuenta de Cliente\",\r\n            fontSize = 24.sp,\r\n            fontWeight = FontWeight.Bold,\r\n            color = PrimaryLight,\r\n            fontFamily = FontFamily.Serif\r\n        )\r\n\r\n        Text(\r\n            text = \"Reserva cupos cómodos en viajes intermunicipales o despacha encomiendas con monitoreo satelital en tiempo real.\",\r\n            fontSize = 13.sp,\r\n            color = Color(0xFF44474D),\r\n            lineHeight = 18.sp\r\n        )\r\n\r\n        // Section 1: Datos Personales y Acceso\r\n        CardSectionContainer(\r\n            title = \"1. Datos Personales y Acceso\",\r\n            icon = Icons.Default.Badge,\r\n            subtitle = \"Tus credenciales para gestionar reservas y despachos\"\r\n        ) {\r\n            OutlinedTextField(\r\n                value = fullName,\r\n                onValueChange = { fullName = it },\r\n                label = { Text(\"Nombre completo\") },\r\n                placeholder = { Text(\"Ej: Valentina Gómez Salazar\") },\r\n                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },\r\n                modifier = Modifier.fillMaxWidth(),\r\n                shape = RoundedCornerShape(8.dp),\r\n                colors = customTextFieldColors()\r\n            )\r\n\r\n            OutlinedTextField(\r\n                value = email,\r\n                onValueChange = { email = it },\r\n                label = { Text(\"Correo electrónico\") },\r\n                placeholder = { Text(\"ejemplo@correo.com\") },\r\n                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },\r\n                modifier = Modifier.fillMaxWidth(),\r\n                shape = RoundedCornerShape(8.dp),\r\n                colors = customTextFieldColors()\r\n            )\r\n\r\n            // Phone field with WhatsApp country code selector\r\n            Column {\r\n                Text(\r\n                    text = \"Número de WhatsApp / Celular\",\r\n                    fontSize = 12.sp,\r\n                    fontWeight = FontWeight.SemiBold,\r\n                    color = PrimaryLight,\r\n                    modifier = Modifier.padding(bottom = 4.dp)\r\n                )\r\n                PhoneWithCountrySelectorField(\r\n                    phoneValue = phone,\r\n                    onPhoneChange = { phone = it },\r\n                    placeholderText = \"310 456 7890\"\r\n                )\r\n            }\r\n\r\n            Column {\r\n                PasswordTextField(\r\n                    value = password,\r\n                    onValueChange = { password = it },\r\n                    label = \"Contraseña segura\",\r\n                    placeholder = \"Mínimo 8 caracteres\"\r\n                )\r\n                Text(\r\n                    text = \"Incluye mayúsculas, números o caracteres especiales.\",\r\n                    fontSize = 11.sp,\r\n                    color = Color(0xFF74777E),\r\n                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)\r\n                )\r\n            }\r\n        }\r\n\r\n        // Section 2: Validación de Seguridad\r\n        CardSectionContainer(\r\n            title = \"2. Validación de Seguridad\",\r\n            icon = Icons.Default.VerifiedUser,\r\n            subtitle = \"Requerido para control de abordaje en terminal\"\r\n        ) {\r\n            Text(\r\n                text = \"Documento de Identidad\",\r\n                fontSize = 12.sp,\r\n                fontWeight = FontWeight.SemiBold,\r\n                color = PrimaryLight\r\n            )\r\n\r\n            Row(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                horizontalArrangement = Arrangement.spacedBy(8.dp),\r\n                verticalAlignment = Alignment.CenterVertically\r\n            ) {\r\n                Box {\r\n                    Surface(\r\n                        modifier = Modifier\r\n                            .height(56.dp)\r\n                            .clickable { docDropdownExpanded = true },\r\n                        shape = RoundedCornerShape(8.dp),\r\n                        color = Color(0xFFEFF4FF),\r\n                        border = BorderStroke(1.dp, Color(0xFFC4C6CE))\r\n                    ) {\r\n                        Row(\r\n                            modifier = Modifier.padding(horizontal = 12.dp),\r\n                            verticalAlignment = Alignment.CenterVertically\r\n                        ) {\r\n                            Text(documentType, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)\r\n                            Spacer(modifier = Modifier.width(4.dp))\r\n                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = PrimaryLight)\r\n                        }\r\n                    }\r\n\r\n                    DropdownMenu(\r\n                        expanded = docDropdownExpanded,\r\n                        onDismissRequest = { docDropdownExpanded = false }\r\n                    ) {\r\n                        DropdownMenuItem(\r\n                            text = { Text(\"C.C.\") },\r\n                            onClick = { documentType = \"C.C.\"; docDropdownExpanded = false }\r\n                        )\r\n                        DropdownMenuItem(\r\n                            text = { Text(\"C.E.\") },\r\n                            onClick = { documentType = \"C.E.\"; docDropdownExpanded = false }\r\n                        )\r\n                        DropdownMenuItem(\r\n                            text = { Text(\"Pasaporte\") },\r\n                            onClick = { documentType = \"Pasaporte\"; docDropdownExpanded = false }\r\n                        )\r\n                    }\r\n                }\r\n\r\n                OutlinedTextField(\r\n                    value = documentNumber,\r\n                    onValueChange = { documentNumber = it },\r\n                    placeholder = { Text(\"1.020.485.934\") },\r\n                    leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },\r\n                    modifier = Modifier.weight(1f),\r\n                    shape = RoundedCornerShape(8.dp),\r\n                    colors = customTextFieldColors()\r\n                )\r\n            }\r\n\r\n            // Selfie de verificación biométrica\r\n            Row(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                horizontalArrangement = Arrangement.SpaceBetween,\r\n                verticalAlignment = Alignment.CenterVertically\r\n            ) {\r\n                Text(\r\n                    text = \"Selfie de verificación biométrica\",\r\n                    fontSize = 12.sp,\r\n                    fontWeight = FontWeight.SemiBold,\r\n                    color = PrimaryLight\r\n                )\r\n                Text(\r\n                    text = \"Obligatorio\",\r\n                    fontSize = 11.sp,\r\n                    fontWeight = FontWeight.Bold,\r\n                    color = Secondary\r\n                )\r\n            }\r\n\r\n            Text(\r\n                text = \"Rostro descubierto y nítido para entrega segura de encomiendas y abordaje en ruta.\",\r\n                fontSize = 11.sp,\r\n                color = Color(0xFF74777E)\r\n            )\r\n\r\n            Surface(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                color = Color(0xFFEFF4FF),\r\n                shape = RoundedCornerShape(8.dp)\r\n            ) {\r\n                Row(\r\n                    modifier = Modifier.padding(12.dp),\r\n                    verticalAlignment = Alignment.CenterVertically,\r\n                    horizontalArrangement = Arrangement.SpaceBetween\r\n                ) {\r\n                    Row(verticalAlignment = Alignment.CenterVertically) {\r\n                        Surface(\r\n                            modifier = Modifier.size(44.dp),\r\n                            shape = CircleShape,\r\n                            color = Color(0xFFD3E4FE)\r\n                        ) {\r\n                            Icon(\r\n                                imageVector = Icons.Default.Face,\r\n                                contentDescription = null,\r\n                                tint = PrimaryLight,\r\n                                modifier = Modifier.padding(10.dp)\r\n                            )\r\n                        }\r\n                        Spacer(modifier = Modifier.width(10.dp))\r\n                        Text(\r\n                            text = \"Sin captura adjunta\",\r\n                            fontSize = 12.sp,\r\n                            fontWeight = FontWeight.Bold,\r\n                            color = PrimaryLight\r\n                        )\r\n                    }\r\n\r\n                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {\r\n                        Button(\r\n                            onClick = { },\r\n                            shape = RoundedCornerShape(6.dp),\r\n                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryLight),\r\n                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)\r\n                        ) {\r\n                            Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(14.dp))\r\n                            Spacer(modifier = Modifier.width(4.dp))\r\n                            Text(\"Tomar foto\", fontSize = 11.sp, fontWeight = FontWeight.Bold)\r\n                        }\r\n\r\n                        Button(\r\n                            onClick = { },\r\n                            shape = RoundedCornerShape(6.dp),\r\n                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD3E4FE)),\r\n                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)\r\n                        ) {\r\n                            Icon(Icons.Default.FileUpload, contentDescription = null, tint = PrimaryLight, modifier = Modifier.size(14.dp))\r\n                            Spacer(modifier = Modifier.width(4.dp))\r\n                            Text(\"Subir\", fontSize = 11.sp, color = PrimaryLight, fontWeight = FontWeight.Bold)\r\n                        }\r\n                    }\r\n                }\r\n            }\r\n        }\r\n\r\n        // Section 3: Métodos de Pago\r\n        Surface(\r\n            modifier = Modifier.fillMaxWidth(),\r\n            color = Color.White,\r\n            shape = RoundedCornerShape(12.dp),\r\n            border = BorderStroke(1.dp, Color(0xFFC4C6CE)),\r\n            shadowElevation = 1.dp\r\n        ) {\r\n            Row(\r\n                modifier = Modifier.padding(14.dp),\r\n                verticalAlignment = Alignment.CenterVertically,\r\n                horizontalArrangement = Arrangement.SpaceBetween\r\n            ) {\r\n                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {\r\n                    Surface(\r\n                        modifier = Modifier.size(36.dp),\r\n                        shape = RoundedCornerShape(6.dp),\r\n                        color = Color(0xFFE5EEFF)\r\n                    ) {\r\n                        Icon(\r\n                            imageVector = Icons.Default.CreditCard,\r\n                            contentDescription = null,\r\n                            tint = PrimaryLight,\r\n                            modifier = Modifier.padding(8.dp)\r\n                        )\r\n                    }\r\n                    Spacer(modifier = Modifier.width(10.dp))\r\n                    Column {\r\n                        Row(verticalAlignment = Alignment.CenterVertically) {\r\n                            Text(\r\n                                text = \"3. Métodos de Pago\",\r\n                                fontSize = 13.sp,\r\n                                fontWeight = FontWeight.Bold,\r\n                                color = PrimaryLight\r\n                            )\r\n                            Spacer(modifier = Modifier.width(6.dp))\r\n                            Surface(\r\n                                color = StatusPendingBg,\r\n                                shape = RoundedCornerShape(4.dp)\r\n                            ) {\r\n                                Text(\r\n                                    text = \"Opcional\",\r\n                                    fontSize = 10.sp,\r\n                                    fontWeight = FontWeight.Bold,\r\n                                    color = Secondary,\r\n                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)\r\n                                )\r\n                            }\r\n                        }\r\n                        Text(\r\n                            text = \"Tarjetas débito/crédito y PSE\",\r\n                            fontSize = 11.sp,\r\n                            color = Color(0xFF74777E)\r\n                        )\r\n                    }\r\n                }\r\n\r\n                Button(\r\n                    onClick = { },\r\n                    shape = RoundedCornerShape(8.dp),\r\n                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryLight),\r\n                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)\r\n                ) {\r\n                    Text(\"+ Configurar\", fontSize = 12.sp, fontWeight = FontWeight.Bold)\r\n                    Spacer(modifier = Modifier.width(4.dp))\r\n                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))\r\n                }\r\n            }\r\n        }\r\n\r\n        // Insurance Info Banner\r\n        Surface(\r\n            modifier = Modifier.fillMaxWidth(),\r\n            color = Color(0xFFEFF4FF),\r\n            shape = RoundedCornerShape(12.dp)\r\n        ) {\r\n            Row(\r\n                modifier = Modifier.padding(12.dp),\r\n                verticalAlignment = Alignment.CenterVertically\r\n            ) {\r\n                Surface(\r\n                    modifier = Modifier.size(40.dp),\r\n                    shape = RoundedCornerShape(8.dp),\r\n                    color = SecondaryContainer\r\n                ) {\r\n                    Icon(\r\n                        imageVector = Icons.Default.DirectionsBus,\r\n                        contentDescription = null,\r\n                        tint = Color.White,\r\n                        modifier = Modifier.padding(10.dp)\r\n                    )\r\n                }\r\n                Spacer(modifier = Modifier.width(12.dp))\r\n                Column {\r\n                    Text(\r\n                        text = \"Póliza de Pasajero y Mercancía\",\r\n                        fontSize = 13.sp,\r\n                        fontWeight = FontWeight.Bold,\r\n                        color = PrimaryLight\r\n                    )\r\n                    Text(\r\n                        text = \"Cobertura activa desde el abordaje hasta la entrega final en destino.\",\r\n                        fontSize = 11.sp,\r\n                        color = Color(0xFF44474D),\r\n                        lineHeight = 15.sp\r\n                    )\r\n                }\r\n            }\r\n        }\r\n\r\n        // Checkboxes\r\n        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {\r\n            Row(\r\n                verticalAlignment = Alignment.Top,\r\n                modifier = Modifier.fillMaxWidth()\r\n            ) {\r\n                Checkbox(\r\n                    checked = termsAccepted,\r\n                    onCheckedChange = { termsAccepted = it },\r\n                    colors = CheckboxDefaults.colors(checkedColor = Secondary)\r\n                )\r\n                Text(\r\n                    text = \"Acepto los Términos y Condiciones del servicio de transporte y la Política de Privacidad de datos de Ruta Confiable.\",\r\n                    fontSize = 12.sp,\r\n                    color = Color(0xFF44474D),\r\n                    lineHeight = 16.sp,\r\n                    modifier = Modifier.padding(top = 10.dp)\r\n                )\r\n            }\r\n\r\n            Row(\r\n                verticalAlignment = Alignment.Top,\r\n                modifier = Modifier.fillMaxWidth()\r\n            ) {\r\n                Checkbox(\r\n                    checked = whatsappAlertsAccepted,\r\n                    onCheckedChange = { whatsappAlertsAccepted = it },\r\n                    colors = CheckboxDefaults.colors(checkedColor = Secondary)\r\n                )\r\n                Text(\r\n                    text = \"Deseo recibir alertas de WhatsApp con el estado del bus y ubicación en tiempo real de mis encomiendas.\",\r\n                    fontSize = 12.sp,\r\n                    color = Color(0xFF44474D),\r\n                    lineHeight = 16.sp,\r\n                    modifier = Modifier.padding(top = 10.dp)\r\n                )\r\n            }\r\n        }\r\n\r\n        // Primary Action Button\r\n        PrimaryButton(\r\n            text = \"Crear cuenta de cliente\",\r\n            onClick = onSubmit\r\n        )\r\n\r\n        // Encrypted Security Note\r\n        TlsEncryptionBadge(\r\n            modifier = Modifier.align(Alignment.CenterHorizontally)\r\n        )\r\n    }\r\n}\r\n\r\n// DRIVER REGISTRATION FORM CONTENT\r\n@Composable\r\nprivate fun DriverRegistrationFormContent(\r\n    onSubmit: () -> Unit\r\n) {\r\n    var fullName by remember { mutableStateOf(\"\") }\r\n    var email by remember { mutableStateOf(\"\") }\r\n    var password by remember { mutableStateOf(\"\") }\r\n    var licenseNumber by remember { mutableStateOf(\"\") }\r\n    var selectedVehicleType by remember { mutableStateOf(\"Camión Ligero\") }\r\n    var vehiclePlate by remember { mutableStateOf(\"\") }\r\n    var soatNumber by remember { mutableStateOf(\"\") }\r\n    var soatExpiration by remember { mutableStateOf(\"\") }\r\n    var termsAccepted by remember { mutableStateOf(false) }\r\n    var policiesAccepted by remember { mutableStateOf(false) }\r\n\r\n    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {\r\n\r\n        // Header Info\r\n        Row(\r\n            modifier = Modifier.fillMaxWidth(),\r\n            horizontalArrangement = Arrangement.SpaceBetween,\r\n            verticalAlignment = Alignment.CenterVertically\r\n        ) {\r\n            Surface(\r\n                color = Color(0xFFE5EEFF),\r\n                shape = RoundedCornerShape(16.dp)\r\n            ) {\r\n                Row(\r\n                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),\r\n                    verticalAlignment = Alignment.CenterVertically\r\n                ) {\r\n                    Icon(\r\n                        imageVector = Icons.Default.LocalShipping,\r\n                        contentDescription = null,\r\n                        tint = Secondary,\r\n                        modifier = Modifier.size(14.dp)\r\n                    )\r\n                    Spacer(modifier = Modifier.width(4.dp))\r\n                    Text(\r\n                        text = \"REGISTRO DE CONDUCTOR\",\r\n                        fontSize = 11.sp,\r\n                        fontWeight = FontWeight.Bold,\r\n                        color = PrimaryLight\r\n                    )\r\n                }\r\n            }\r\n\r\n            Surface(\r\n                color = Color(0xFFE5EEFF),\r\n                shape = RoundedCornerShape(16.dp)\r\n            ) {\r\n                Text(\r\n                    text = \"Paso 1 de 2\",\r\n                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),\r\n                    fontSize = 11.sp,\r\n                    fontWeight = FontWeight.Bold,\r\n                    color = PrimaryLight\r\n                )\r\n            }\r\n        }\r\n\r\n        Text(\r\n            text = \"Crea tu cuenta de Conductor\",\r\n            fontSize = 24.sp,\r\n            fontWeight = FontWeight.Bold,\r\n            color = PrimaryLight,\r\n            fontFamily = FontFamily.Serif\r\n        )\r\n\r\n        Text(\r\n            text = \"Coordinación logística regional y flete seguro. Selecciona tu perfil operativo para comenzar.\",\r\n            fontSize = 13.sp,\r\n            color = Color(0xFF44474D),\r\n            lineHeight = 18.sp\r\n        )\r\n\r\n        // Section 1: Información Personal\r\n        CardSectionContainer(\r\n            title = \"1. Información Personal\",\r\n            icon = Icons.Default.Badge,\r\n            tagText = \"Obligatorio\",\r\n            tagColor = Color(0xFF74777E)\r\n        ) {\r\n            OutlinedTextField(\r\n                value = fullName,\r\n                onValueChange = { fullName = it },\r\n                label = { Text(\"Nombre completo\") },\r\n                placeholder = { Text(\"Ej. Carlos Mendoza Rivas\") },\r\n                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },\r\n                modifier = Modifier.fillMaxWidth(),\r\n                shape = RoundedCornerShape(8.dp),\r\n                colors = customTextFieldColors()\r\n            )\r\n\r\n            OutlinedTextField(\r\n                value = email,\r\n                onValueChange = { email = it },\r\n                label = { Text(\"Correo electrónico\") },\r\n                placeholder = { Text(\"operaciones@ejemplo.com\") },\r\n                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },\r\n                modifier = Modifier.fillMaxWidth(),\r\n                shape = RoundedCornerShape(8.dp),\r\n                colors = customTextFieldColors()\r\n            )\r\n\r\n            PasswordTextField(\r\n                value = password,\r\n                onValueChange = { password = it },\r\n                label = \"Contraseña\",\r\n                placeholder = \"Mínimo 8 caracteres\"\r\n            )\r\n\r\n            // Selfie biométrica\r\n            Text(\r\n                text = \"Fotografía facial (Selfie biométrica)\",\r\n                fontSize = 12.sp,\r\n                fontWeight = FontWeight.SemiBold,\r\n                color = PrimaryLight\r\n            )\r\n\r\n            Box(\r\n                modifier = Modifier\r\n                    .fillMaxWidth()\r\n                    .dashedBorder(1.dp, Color(0xFFC4C6CE), 8.dp)\r\n                    .background(Color(0xFFEFF4FF), RoundedCornerShape(8.dp))\r\n                    .padding(12.dp)\r\n            ) {\r\n                Row(\r\n                    modifier = Modifier.fillMaxWidth(),\r\n                    verticalAlignment = Alignment.CenterVertically,\r\n                    horizontalArrangement = Arrangement.SpaceBetween\r\n                ) {\r\n                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {\r\n                        Box {\r\n                            Surface(\r\n                                modifier = Modifier.size(44.dp),\r\n                                shape = CircleShape,\r\n                                color = Color(0xFFD3E4FE)\r\n                            ) {\r\n                                Icon(\r\n                                    imageVector = Icons.Default.Person,\r\n                                    contentDescription = null,\r\n                                    modifier = Modifier\r\n                                        .padding(8.dp)\r\n                                        .fillMaxSize(),\r\n                                    tint = PrimaryLight\r\n                                )\r\n                            }\r\n                            Surface(\r\n                                modifier = Modifier\r\n                                    .size(16.dp)\r\n                                    .align(Alignment.BottomEnd),\r\n                                shape = CircleShape,\r\n                                color = Secondary\r\n                            ) {\r\n                                Icon(\r\n                                    imageVector = Icons.Default.Add,\r\n                                    contentDescription = null,\r\n                                    tint = Color.White,\r\n                                    modifier = Modifier.padding(2.dp)\r\n                                )\r\n                            }\r\n                        }\r\n                        Spacer(modifier = Modifier.width(10.dp))\r\n                        Column {\r\n                            Text(\r\n                                text = \"Rostro descubierto y nítido\",\r\n                                fontSize = 12.sp,\r\n                                fontWeight = FontWeight.Bold,\r\n                                color = PrimaryLight\r\n                            )\r\n                            Text(\r\n                                text = \"Sin gorras ni gafas oscuras\",\r\n                                fontSize = 11.sp,\r\n                                color = Color(0xFF74777E)\r\n                            )\r\n                        }\r\n                    }\r\n\r\n                    OutlinedButton(\r\n                        onClick = { },\r\n                        shape = RoundedCornerShape(8.dp),\r\n                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),\r\n                        border = BorderStroke(1.dp, Color(0xFFC4C6CE))\r\n                    ) {\r\n                        Text(\"Tomar foto\", fontSize = 12.sp, color = PrimaryLight, fontWeight = FontWeight.Bold)\r\n                    }\r\n                }\r\n            }\r\n\r\n            // Status Tag\r\n            StatusTag(\r\n                text = \"Validación facial obligatoria\",\r\n                bgColor = StatusAvailableBg,\r\n                textColor = StatusAvailable,\r\n                icon = Icons.Default.CheckCircle\r\n            )\r\n        }\r\n\r\n        // Section 2: Licencia de Conducción\r\n        CardSectionContainer(\r\n            title = \"2. Licencia de Conducción\",\r\n            icon = Icons.Default.AssignmentInd,\r\n            tagText = \"RUNT Vigente\",\r\n            tagColor = Secondary\r\n        ) {\r\n            OutlinedTextField(\r\n                value = licenseNumber,\r\n                onValueChange = { licenseNumber = it },\r\n                label = { Text(\"Número de licencia (Pase)\") },\r\n                placeholder = { Text(\"Ej. 1020485934\") },\r\n                leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },\r\n                modifier = Modifier.fillMaxWidth(),\r\n                shape = RoundedCornerShape(8.dp),\r\n                colors = customTextFieldColors()\r\n            )\r\n\r\n            Text(\r\n                text = \"Cargar documento de licencia\",\r\n                fontSize = 12.sp,\r\n                fontWeight = FontWeight.SemiBold,\r\n                color = PrimaryLight\r\n            )\r\n\r\n            Box(\r\n                modifier = Modifier\r\n                    .fillMaxWidth()\r\n                    .dashedBorder(1.dp, Color(0xFFC4C6CE), 8.dp)\r\n                    .background(Color(0xFFEFF4FF), RoundedCornerShape(8.dp))\r\n                    .padding(16.dp)\r\n            ) {\r\n                Column(\r\n                    modifier = Modifier.fillMaxWidth(),\r\n                    horizontalAlignment = Alignment.CenterHorizontally\r\n                ) {\r\n                    Icon(\r\n                        imageVector = Icons.Default.FileUpload,\r\n                        contentDescription = null,\r\n                        tint = PrimaryLight,\r\n                        modifier = Modifier.size(32.dp)\r\n                    )\r\n                    Spacer(modifier = Modifier.height(4.dp))\r\n                    Text(\r\n                        text = \"Toca para cargar foto o PDF legible\",\r\n                        fontSize = 12.sp,\r\n                        fontWeight = FontWeight.Bold,\r\n                        color = PrimaryLight\r\n                    )\r\n                    Text(\r\n                        text = \"Frente y reverso en un solo archivo (Máx 5MB)\",\r\n                        fontSize = 11.sp,\r\n                        color = Color(0xFF74777E)\r\n                    )\r\n                    Spacer(modifier = Modifier.height(8.dp))\r\n                    Button(\r\n                        onClick = { },\r\n                        shape = RoundedCornerShape(8.dp),\r\n                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD3E4FE)),\r\n                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)\r\n                    ) {\r\n                        Icon(\r\n                            imageVector = Icons.Default.FilePresent,\r\n                            contentDescription = null,\r\n                            tint = PrimaryLight,\r\n                            modifier = Modifier.size(16.dp)\r\n                        )\r\n                        Spacer(modifier = Modifier.width(6.dp))\r\n                        Text(\"Seleccionar archivo\", fontSize = 12.sp, color = PrimaryLight, fontWeight = FontWeight.Bold)\r\n                    }\r\n                }\r\n            }\r\n        }\r\n\r\n        // Section 3: Requisitos del Vehículo\r\n        CardSectionContainer(\r\n            title = \"3. Requisitos del Vehículo\",\r\n            icon = Icons.Default.DirectionsCar,\r\n            tagText = \"Inspección Vial\",\r\n            tagColor = Color(0xFF74777E)\r\n        ) {\r\n            Text(\r\n                text = \"Tipo de vehículo habilitado\",\r\n                fontSize = 12.sp,\r\n                fontWeight = FontWeight.SemiBold,\r\n                color = PrimaryLight\r\n            )\r\n\r\n            Row(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                horizontalArrangement = Arrangement.spacedBy(8.dp)\r\n            ) {\r\n                VehicleTypeChip(\r\n                    title = \"Camión Ligero\",\r\n                    icon = Icons.Default.LocalShipping,\r\n                    isSelected = selectedVehicleType == \"Camión Ligero\",\r\n                    modifier = Modifier.weight(1f),\r\n                    onClick = { selectedVehicleType = \"Camión Ligero\" }\r\n                )\r\n                VehicleTypeChip(\r\n                    title = \"Camioneta\",\r\n                    icon = Icons.Default.AirportShuttle,\r\n                    isSelected = selectedVehicleType == \"Camioneta\",\r\n                    modifier = Modifier.weight(1f),\r\n                    onClick = { selectedVehicleType = \"Camioneta\" }\r\n                )\r\n                VehicleTypeChip(\r\n                    title = \"Baúl Abierto\",\r\n                    icon = Icons.Default.DirectionsBus,\r\n                    isSelected = selectedVehicleType == \"Baúl Abierto\",\r\n                    modifier = Modifier.weight(1f),\r\n                    onClick = { selectedVehicleType = \"Baúl Abierto\" }\r\n                )\r\n            }\r\n\r\n            Row(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                horizontalArrangement = Arrangement.spacedBy(8.dp)\r\n            ) {\r\n                OutlinedTextField(\r\n                    value = vehiclePlate,\r\n                    onValueChange = { vehiclePlate = it },\r\n                    label = { Text(\"Placa del vehículo\") },\r\n                    placeholder = { Text(\"AAA-123\") },\r\n                    leadingIcon = { Icon(Icons.Default.Subtitles, contentDescription = null) },\r\n                    modifier = Modifier.weight(1f),\r\n                    shape = RoundedCornerShape(8.dp),\r\n                    colors = customTextFieldColors()\r\n                )\r\n\r\n                OutlinedTextField(\r\n                    value = soatNumber,\r\n                    onValueChange = { soatNumber = it },\r\n                    label = { Text(\"Número de SOAT\") },\r\n                    placeholder = { Text(\"10094827\") },\r\n                    leadingIcon = { Icon(Icons.Default.Verified, contentDescription = null) },\r\n                    modifier = Modifier.weight(1f),\r\n                    shape = RoundedCornerShape(8.dp),\r\n                    colors = customTextFieldColors()\r\n                )\r\n            }\r\n\r\n            Column {\r\n                OutlinedTextField(\r\n                    value = soatExpiration,\r\n                    onValueChange = { soatExpiration = it },\r\n                    label = { Text(\"Fecha de vencimiento del SOAT\") },\r\n                    placeholder = { Text(\"dd/mm/aaaa\") },\r\n                    leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },\r\n                    trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },\r\n                    modifier = Modifier.fillMaxWidth(),\r\n                    shape = RoundedCornerShape(8.dp),\r\n                    colors = customTextFieldColors()\r\n                )\r\n                Text(\r\n                    text = \"El seguro obligatorio debe tener al menos 30 días de vigencia continua.\",\r\n                    fontSize = 11.sp,\r\n                    color = Color(0xFF74777E),\r\n                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)\r\n                )\r\n            }\r\n\r\n            Text(\r\n                text = \"Foto de Tarjeta de Propiedad o SOAT físico\",\r\n                fontSize = 12.sp,\r\n                fontWeight = FontWeight.SemiBold,\r\n                color = PrimaryLight\r\n            )\r\n\r\n            Surface(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                color = Color(0xFFEFF4FF),\r\n                shape = RoundedCornerShape(8.dp),\r\n                border = BorderStroke(1.dp, Color(0xFFC4C6CE))\r\n            ) {\r\n                Row(\r\n                    modifier = Modifier.padding(12.dp),\r\n                    verticalAlignment = Alignment.CenterVertically,\r\n                    horizontalArrangement = Arrangement.SpaceBetween\r\n                ) {\r\n                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {\r\n                        Surface(\r\n                            modifier = Modifier.size(36.dp),\r\n                            shape = RoundedCornerShape(6.dp),\r\n                            color = Color(0xFFD3E4FE)\r\n                        ) {\r\n                            Icon(\r\n                                imageVector = Icons.Default.Description,\r\n                                contentDescription = null,\r\n                                tint = PrimaryLight,\r\n                                modifier = Modifier.padding(8.dp)\r\n                            )\r\n                        }\r\n                        Spacer(modifier = Modifier.width(10.dp))\r\n                        Column {\r\n                            Text(\r\n                                text = \"Documento de control vehicular\",\r\n                                fontSize = 12.sp,\r\n                                fontWeight = FontWeight.Bold,\r\n                                color = PrimaryLight\r\n                            )\r\n                            Text(\r\n                                text = \"Formato JPG, PNG o PDF\",\r\n                                fontSize = 11.sp,\r\n                                color = Color(0xFF74777E)\r\n                            )\r\n                        }\r\n                    }\r\n\r\n                    Button(\r\n                        onClick = { },\r\n                        shape = RoundedCornerShape(8.dp),\r\n                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryLight),\r\n                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)\r\n                    ) {\r\n                        Text(\"Subir\", fontSize = 12.sp, fontWeight = FontWeight.Bold)\r\n                    }\r\n                }\r\n            }\r\n\r\n            // Legal Requirement Statuses\r\n            Text(\r\n                text = \"Estado de Requerimientos Legales:\",\r\n                fontSize = 11.sp,\r\n                color = Color(0xFF74777E)\r\n            )\r\n\r\n            Row(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                horizontalArrangement = Arrangement.spacedBy(6.dp)\r\n            ) {\r\n                StatusTag(\r\n                    text = \"✓ RUNT Conductor\",\r\n                    bgColor = StatusAvailableBg,\r\n                    textColor = StatusAvailable\r\n                )\r\n                StatusTag(\r\n                    text = \"⏱ Revisión SOAT\",\r\n                    bgColor = StatusPendingBg,\r\n                    textColor = StatusPending\r\n                )\r\n                StatusTag(\r\n                    text = \"✓ Carga Asegurada\",\r\n                    bgColor = Color(0xFFE5EEFF),\r\n                    textColor = PrimaryLight\r\n                )\r\n            }\r\n        }\r\n\r\n        // Checkboxes\r\n        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {\r\n            Row(\r\n                verticalAlignment = Alignment.Top,\r\n                modifier = Modifier.fillMaxWidth()\r\n            ) {\r\n                Checkbox(\r\n                    checked = termsAccepted,\r\n                    onCheckedChange = { termsAccepted = it },\r\n                    colors = CheckboxDefaults.colors(checkedColor = PrimaryLight)\r\n                )\r\n                Text(\r\n                    text = \"Acepto los Términos y Condiciones de Ruta Confiable y autorizo el tratamiento de mis datos personales para verificación y seguridad logística.\",\r\n                    fontSize = 12.sp,\r\n                    color = Color(0xFF44474D),\r\n                    lineHeight = 16.sp,\r\n                    modifier = Modifier.padding(top = 10.dp)\r\n                )\r\n            }\r\n\r\n            Row(\r\n                verticalAlignment = Alignment.Top,\r\n                modifier = Modifier.fillMaxWidth()\r\n            ) {\r\n                Checkbox(\r\n                    checked = policiesAccepted,\r\n                    onCheckedChange = { policiesAccepted = it },\r\n                    colors = CheckboxDefaults.colors(checkedColor = PrimaryLight)\r\n                )\r\n                Text(\r\n                    text = \"Acepto las políticas de validación física e inspección de carga en puestos de control de ruta.\",\r\n                    fontSize = 12.sp,\r\n                    color = Color(0xFF44474D),\r\n                    lineHeight = 16.sp,\r\n                    modifier = Modifier.padding(top = 10.dp)\r\n                )\r\n            }\r\n        }\r\n\r\n        // Primary Action Button\r\n        PrimaryButton(\r\n            text = \"Crear cuenta de conductor\",\r\n            onClick = onSubmit\r\n        )\r\n    }\r\n}\r\n\r\n@Preview(showBackground = true, heightDp = 1600)\r\n@Composable\r\nfun ClientRegistrationScreenPreview() {\r\n    RutaConfiableTheme {\r\n        RegistrationScreen(initialRole = RegistrationRole.CLIENT)\r\n    }\r\n}\r\n\r\n@Preview(showBackground = true, heightDp = 1800)\r\n@Composable\r\nfun DriverRegistrationScreenPreview() {\r\n    RutaConfiableTheme {\r\n        RegistrationScreen(initialRole = RegistrationRole.DRIVER)\r\n    }\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt	(revision 74328ae60b5eb6f728f45f89247c1e625b2bea63)
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt	(date 1794494958533)
+@@ -1,26 +1,26 @@
++
++
+ package me.mauromax.rutaconfiable.ui.screens
+ 
+-import androidx.compose.foundation.BorderStroke
+-import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.rememberScrollState
+-import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material.icons.Icons
+-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+-import androidx.compose.material.icons.filled.*
++import androidx.compose.material.icons.filled.LocalShipping
++import androidx.compose.material.icons.filled.Person
+ import androidx.compose.material3.*
+ import androidx.compose.runtime.*
++import androidx.compose.runtime.saveable.rememberSaveable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+-import androidx.compose.ui.graphics.Color
+-import androidx.compose.ui.text.font.FontFamily
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
++import me.mauromax.rutaconfiable.navigation.ClientRegistrationFormContent
++import me.mauromax.rutaconfiable.navigation.DriverRegistrationFormContent
+ import me.mauromax.rutaconfiable.ui.components.*
+ import me.mauromax.rutaconfiable.ui.theme.*
+ 
+@@ -29,15 +29,16 @@
+     CLIENT
+ }
+ 
+-@OptIn(ExperimentalMaterial3Api::class)
+ @Composable
+ fun RegistrationScreen(
+     initialRole: RegistrationRole = RegistrationRole.DRIVER,
+-    onRegistrationSubmitted: (role: RegistrationRole) -> Unit = {},
++    onRegistrationSubmitted: (RegistrationRole) -> Unit = {},
+     onBackClick: () -> Unit = {},
+     onLoginClick: () -> Unit = {}
+ ) {
+-    var currentRole by remember { mutableStateOf(initialRole) }
++    var currentRole by rememberSaveable {
++        mutableStateOf(initialRole)
++    }
+ 
+     Scaffold(
+         topBar = {
+@@ -48,6 +49,7 @@
+         },
+         containerColor = Background
+     ) { innerPadding ->
++
+         Column(
+             modifier = Modifier
+                 .fillMaxSize()
+@@ -57,10 +59,9 @@
+             verticalArrangement = Arrangement.spacedBy(16.dp)
+         ) {
+ 
+-            // Role Switcher (Conductor / Cliente)
+             Surface(
+                 modifier = Modifier.fillMaxWidth(),
+-                color = Color(0xFFEFF4FF),
++                color = RoleSelectorBackground,
+                 shape = RoundedCornerShape(12.dp)
+             ) {
+                 Row(
+@@ -73,30 +74,45 @@
+                         icon = Icons.Default.LocalShipping,
+                         isSelected = currentRole == RegistrationRole.DRIVER,
+                         modifier = Modifier.weight(1f),
+-                        onClick = { currentRole = RegistrationRole.DRIVER }
++                        onClick = {
++                            currentRole = RegistrationRole.DRIVER
++                        }
+                     )
++
+                     RoleOptionButton(
+                         text = "Cliente",
+                         icon = Icons.Default.Person,
+                         isSelected = currentRole == RegistrationRole.CLIENT,
+                         modifier = Modifier.weight(1f),
+-                        onClick = { currentRole = RegistrationRole.CLIENT }
++                        onClick = {
++                            currentRole = RegistrationRole.CLIENT
++                        }
+                     )
+                 }
+             }
+ 
+-            // Form content depending on selected role
+-            if (currentRole == RegistrationRole.DRIVER) {
+-                DriverRegistrationFormContent(
+-                    onSubmit = { onRegistrationSubmitted(RegistrationRole.DRIVER) }
+-                )
+-            } else {
+-                ClientRegistrationFormContent(
+-                    onSubmit = { onRegistrationSubmitted(RegistrationRole.CLIENT) }
+-                )
++            when (currentRole) {
++                RegistrationRole.DRIVER -> {
++                    DriverRegistrationFormContent(
++                        onSubmit = {
++                            onRegistrationSubmitted(
++                                RegistrationRole.DRIVER
++                            )
++                        }
++                    )
++                }
++
++                RegistrationRole.CLIENT -> {
++                    ClientRegistrationFormContent(
++                        onSubmit = {
++                            onRegistrationSubmitted(
++                                RegistrationRole.CLIENT
++                            )
++                        }
++                    )
++                }
+             }
+ 
+-            // Shared Footer Link
+             Row(
+                 modifier = Modifier
+                     .fillMaxWidth()
+@@ -107,14 +123,17 @@
+                 Text(
+                     text = "¿Ya tienes una cuenta registrada? ",
+                     fontSize = 13.sp,
+-                    color = Color(0xFF44474D)
++                    color = TextSecondary
+                 )
++
+                 Text(
+                     text = "Iniciar sesión",
+                     fontSize = 13.sp,
+                     fontWeight = FontWeight.Bold,
+                     color = Secondary,
+-                    modifier = Modifier.clickable { onLoginClick() }
++                    modifier = Modifier.clickable {
++                        onLoginClick()
++                    }
+                 )
+             }
+ 
+@@ -123,965 +142,10 @@
+     }
+ }
+ 
+-// CLIENT REGISTRATION FORM CONTENT
+-@OptIn(ExperimentalMaterial3Api::class)
+-@Composable
+-private fun ClientRegistrationFormContent(
+-    onSubmit: () -> Unit
+-) {
+-    var fullName by remember { mutableStateOf("") }
+-    var email by remember { mutableStateOf("") }
+-    var phone by remember { mutableStateOf("") }
+-    var password by remember { mutableStateOf("") }
+-    var documentType by remember { mutableStateOf("C.C.") }
+-    var documentNumber by remember { mutableStateOf("") }
+-    var docDropdownExpanded by remember { mutableStateOf(false) }
+-    var termsAccepted by remember { mutableStateOf(false) }
+-    var whatsappAlertsAccepted by remember { mutableStateOf(false) }
+-
+-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+-
+-        // Header Info
+-        Row(
+-            modifier = Modifier.fillMaxWidth(),
+-            horizontalArrangement = Arrangement.SpaceBetween,
+-            verticalAlignment = Alignment.CenterVertically
+-        ) {
+-            Surface(
+-                color = Color(0xFFE5EEFF),
+-                shape = RoundedCornerShape(16.dp)
+-            ) {
+-                Row(
+-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+-                    verticalAlignment = Alignment.CenterVertically
+-                ) {
+-                    Icon(
+-                        imageVector = Icons.Default.Person,
+-                        contentDescription = null,
+-                        tint = Secondary,
+-                        modifier = Modifier.size(14.dp)
+-                    )
+-                    Spacer(modifier = Modifier.width(4.dp))
+-                    Text(
+-                        text = "REGISTRO DE CLIENTE",
+-                        fontSize = 11.sp,
+-                        fontWeight = FontWeight.Bold,
+-                        color = PrimaryLight
+-                    )
+-                }
+-            }
+-
+-            Surface(
+-                color = Color(0xFFE5EEFF),
+-                shape = RoundedCornerShape(16.dp)
+-            ) {
+-                Text(
+-                    text = "Paso 1 de 2",
+-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+-                    fontSize = 11.sp,
+-                    fontWeight = FontWeight.Bold,
+-                    color = PrimaryLight
+-                )
+-            }
+-        }
+-
+-        Text(
+-            text = "Crea tu cuenta de Cliente",
+-            fontSize = 24.sp,
+-            fontWeight = FontWeight.Bold,
+-            color = PrimaryLight,
+-            fontFamily = FontFamily.Serif
+-        )
+-
+-        Text(
+-            text = "Reserva cupos cómodos en viajes intermunicipales o despacha encomiendas con monitoreo satelital en tiempo real.",
+-            fontSize = 13.sp,
+-            color = Color(0xFF44474D),
+-            lineHeight = 18.sp
+-        )
+-
+-        // Section 1: Datos Personales y Acceso
+-        CardSectionContainer(
+-            title = "1. Datos Personales y Acceso",
+-            icon = Icons.Default.Badge,
+-            subtitle = "Tus credenciales para gestionar reservas y despachos"
+-        ) {
+-            OutlinedTextField(
+-                value = fullName,
+-                onValueChange = { fullName = it },
+-                label = { Text("Nombre completo") },
+-                placeholder = { Text("Ej: Valentina Gómez Salazar") },
+-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+-                modifier = Modifier.fillMaxWidth(),
+-                shape = RoundedCornerShape(8.dp),
+-                colors = customTextFieldColors()
+-            )
+-
+-            OutlinedTextField(
+-                value = email,
+-                onValueChange = { email = it },
+-                label = { Text("Correo electrónico") },
+-                placeholder = { Text("ejemplo@correo.com") },
+-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+-                modifier = Modifier.fillMaxWidth(),
+-                shape = RoundedCornerShape(8.dp),
+-                colors = customTextFieldColors()
+-            )
+-
+-            // Phone field with WhatsApp country code selector
+-            Column {
+-                Text(
+-                    text = "Número de WhatsApp / Celular",
+-                    fontSize = 12.sp,
+-                    fontWeight = FontWeight.SemiBold,
+-                    color = PrimaryLight,
+-                    modifier = Modifier.padding(bottom = 4.dp)
+-                )
+-                PhoneWithCountrySelectorField(
+-                    phoneValue = phone,
+-                    onPhoneChange = { phone = it },
+-                    placeholderText = "310 456 7890"
+-                )
+-            }
+-
+-            Column {
+-                PasswordTextField(
+-                    value = password,
+-                    onValueChange = { password = it },
+-                    label = "Contraseña segura",
+-                    placeholder = "Mínimo 8 caracteres"
+-                )
+-                Text(
+-                    text = "Incluye mayúsculas, números o caracteres especiales.",
+-                    fontSize = 11.sp,
+-                    color = Color(0xFF74777E),
+-                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+-                )
+-            }
+-        }
+-
+-        // Section 2: Validación de Seguridad
+-        CardSectionContainer(
+-            title = "2. Validación de Seguridad",
+-            icon = Icons.Default.VerifiedUser,
+-            subtitle = "Requerido para control de abordaje en terminal"
+-        ) {
+-            Text(
+-                text = "Documento de Identidad",
+-                fontSize = 12.sp,
+-                fontWeight = FontWeight.SemiBold,
+-                color = PrimaryLight
+-            )
+-
+-            Row(
+-                modifier = Modifier.fillMaxWidth(),
+-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+-                verticalAlignment = Alignment.CenterVertically
+-            ) {
+-                Box {
+-                    Surface(
+-                        modifier = Modifier
+-                            .height(56.dp)
+-                            .clickable { docDropdownExpanded = true },
+-                        shape = RoundedCornerShape(8.dp),
+-                        color = Color(0xFFEFF4FF),
+-                        border = BorderStroke(1.dp, Color(0xFFC4C6CE))
+-                    ) {
+-                        Row(
+-                            modifier = Modifier.padding(horizontal = 12.dp),
+-                            verticalAlignment = Alignment.CenterVertically
+-                        ) {
+-                            Text(documentType, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+-                            Spacer(modifier = Modifier.width(4.dp))
+-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = PrimaryLight)
+-                        }
+-                    }
+-
+-                    DropdownMenu(
+-                        expanded = docDropdownExpanded,
+-                        onDismissRequest = { docDropdownExpanded = false }
+-                    ) {
+-                        DropdownMenuItem(
+-                            text = { Text("C.C.") },
+-                            onClick = { documentType = "C.C."; docDropdownExpanded = false }
+-                        )
+-                        DropdownMenuItem(
+-                            text = { Text("C.E.") },
+-                            onClick = { documentType = "C.E."; docDropdownExpanded = false }
+-                        )
+-                        DropdownMenuItem(
+-                            text = { Text("Pasaporte") },
+-                            onClick = { documentType = "Pasaporte"; docDropdownExpanded = false }
+-                        )
+-                    }
+-                }
+-
+-                OutlinedTextField(
+-                    value = documentNumber,
+-                    onValueChange = { documentNumber = it },
+-                    placeholder = { Text("1.020.485.934") },
+-                    leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
+-                    modifier = Modifier.weight(1f),
+-                    shape = RoundedCornerShape(8.dp),
+-                    colors = customTextFieldColors()
+-                )
+-            }
+-
+-            // Selfie de verificación biométrica
+-            Row(
+-                modifier = Modifier.fillMaxWidth(),
+-                horizontalArrangement = Arrangement.SpaceBetween,
+-                verticalAlignment = Alignment.CenterVertically
+-            ) {
+-                Text(
+-                    text = "Selfie de verificación biométrica",
+-                    fontSize = 12.sp,
+-                    fontWeight = FontWeight.SemiBold,
+-                    color = PrimaryLight
+-                )
+-                Text(
+-                    text = "Obligatorio",
+-                    fontSize = 11.sp,
+-                    fontWeight = FontWeight.Bold,
+-                    color = Secondary
+-                )
+-            }
+-
+-            Text(
+-                text = "Rostro descubierto y nítido para entrega segura de encomiendas y abordaje en ruta.",
+-                fontSize = 11.sp,
+-                color = Color(0xFF74777E)
+-            )
+-
+-            Surface(
+-                modifier = Modifier.fillMaxWidth(),
+-                color = Color(0xFFEFF4FF),
+-                shape = RoundedCornerShape(8.dp)
+-            ) {
+-                Row(
+-                    modifier = Modifier.padding(12.dp),
+-                    verticalAlignment = Alignment.CenterVertically,
+-                    horizontalArrangement = Arrangement.SpaceBetween
+-                ) {
+-                    Row(verticalAlignment = Alignment.CenterVertically) {
+-                        Surface(
+-                            modifier = Modifier.size(44.dp),
+-                            shape = CircleShape,
+-                            color = Color(0xFFD3E4FE)
+-                        ) {
+-                            Icon(
+-                                imageVector = Icons.Default.Face,
+-                                contentDescription = null,
+-                                tint = PrimaryLight,
+-                                modifier = Modifier.padding(10.dp)
+-                            )
+-                        }
+-                        Spacer(modifier = Modifier.width(10.dp))
+-                        Text(
+-                            text = "Sin captura adjunta",
+-                            fontSize = 12.sp,
+-                            fontWeight = FontWeight.Bold,
+-                            color = PrimaryLight
+-                        )
+-                    }
+-
+-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+-                        Button(
+-                            onClick = { },
+-                            shape = RoundedCornerShape(6.dp),
+-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryLight),
+-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+-                        ) {
+-                            Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(14.dp))
+-                            Spacer(modifier = Modifier.width(4.dp))
+-                            Text("Tomar foto", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+-                        }
+-
+-                        Button(
+-                            onClick = { },
+-                            shape = RoundedCornerShape(6.dp),
+-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD3E4FE)),
+-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+-                        ) {
+-                            Icon(Icons.Default.FileUpload, contentDescription = null, tint = PrimaryLight, modifier = Modifier.size(14.dp))
+-                            Spacer(modifier = Modifier.width(4.dp))
+-                            Text("Subir", fontSize = 11.sp, color = PrimaryLight, fontWeight = FontWeight.Bold)
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-
+-        // Section 3: Métodos de Pago
+-        Surface(
+-            modifier = Modifier.fillMaxWidth(),
+-            color = Color.White,
+-            shape = RoundedCornerShape(12.dp),
+-            border = BorderStroke(1.dp, Color(0xFFC4C6CE)),
+-            shadowElevation = 1.dp
+-        ) {
+-            Row(
+-                modifier = Modifier.padding(14.dp),
+-                verticalAlignment = Alignment.CenterVertically,
+-                horizontalArrangement = Arrangement.SpaceBetween
+-            ) {
+-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+-                    Surface(
+-                        modifier = Modifier.size(36.dp),
+-                        shape = RoundedCornerShape(6.dp),
+-                        color = Color(0xFFE5EEFF)
+-                    ) {
+-                        Icon(
+-                            imageVector = Icons.Default.CreditCard,
+-                            contentDescription = null,
+-                            tint = PrimaryLight,
+-                            modifier = Modifier.padding(8.dp)
+-                        )
+-                    }
+-                    Spacer(modifier = Modifier.width(10.dp))
+-                    Column {
+-                        Row(verticalAlignment = Alignment.CenterVertically) {
+-                            Text(
+-                                text = "3. Métodos de Pago",
+-                                fontSize = 13.sp,
+-                                fontWeight = FontWeight.Bold,
+-                                color = PrimaryLight
+-                            )
+-                            Spacer(modifier = Modifier.width(6.dp))
+-                            Surface(
+-                                color = StatusPendingBg,
+-                                shape = RoundedCornerShape(4.dp)
+-                            ) {
+-                                Text(
+-                                    text = "Opcional",
+-                                    fontSize = 10.sp,
+-                                    fontWeight = FontWeight.Bold,
+-                                    color = Secondary,
+-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+-                                )
+-                            }
+-                        }
+-                        Text(
+-                            text = "Tarjetas débito/crédito y PSE",
+-                            fontSize = 11.sp,
+-                            color = Color(0xFF74777E)
+-                        )
+-                    }
+-                }
+-
+-                Button(
+-                    onClick = { },
+-                    shape = RoundedCornerShape(8.dp),
+-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryLight),
+-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+-                ) {
+-                    Text("+ Configurar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+-                    Spacer(modifier = Modifier.width(4.dp))
+-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
+-                }
+-            }
+-        }
+-
+-        // Insurance Info Banner
+-        Surface(
+-            modifier = Modifier.fillMaxWidth(),
+-            color = Color(0xFFEFF4FF),
+-            shape = RoundedCornerShape(12.dp)
+-        ) {
+-            Row(
+-                modifier = Modifier.padding(12.dp),
+-                verticalAlignment = Alignment.CenterVertically
+-            ) {
+-                Surface(
+-                    modifier = Modifier.size(40.dp),
+-                    shape = RoundedCornerShape(8.dp),
+-                    color = SecondaryContainer
+-                ) {
+-                    Icon(
+-                        imageVector = Icons.Default.DirectionsBus,
+-                        contentDescription = null,
+-                        tint = Color.White,
+-                        modifier = Modifier.padding(10.dp)
+-                    )
+-                }
+-                Spacer(modifier = Modifier.width(12.dp))
+-                Column {
+-                    Text(
+-                        text = "Póliza de Pasajero y Mercancía",
+-                        fontSize = 13.sp,
+-                        fontWeight = FontWeight.Bold,
+-                        color = PrimaryLight
+-                    )
+-                    Text(
+-                        text = "Cobertura activa desde el abordaje hasta la entrega final en destino.",
+-                        fontSize = 11.sp,
+-                        color = Color(0xFF44474D),
+-                        lineHeight = 15.sp
+-                    )
+-                }
+-            }
+-        }
+-
+-        // Checkboxes
+-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+-            Row(
+-                verticalAlignment = Alignment.Top,
+-                modifier = Modifier.fillMaxWidth()
+-            ) {
+-                Checkbox(
+-                    checked = termsAccepted,
+-                    onCheckedChange = { termsAccepted = it },
+-                    colors = CheckboxDefaults.colors(checkedColor = Secondary)
+-                )
+-                Text(
+-                    text = "Acepto los Términos y Condiciones del servicio de transporte y la Política de Privacidad de datos de Ruta Confiable.",
+-                    fontSize = 12.sp,
+-                    color = Color(0xFF44474D),
+-                    lineHeight = 16.sp,
+-                    modifier = Modifier.padding(top = 10.dp)
+-                )
+-            }
+-
+-            Row(
+-                verticalAlignment = Alignment.Top,
+-                modifier = Modifier.fillMaxWidth()
+-            ) {
+-                Checkbox(
+-                    checked = whatsappAlertsAccepted,
+-                    onCheckedChange = { whatsappAlertsAccepted = it },
+-                    colors = CheckboxDefaults.colors(checkedColor = Secondary)
+-                )
+-                Text(
+-                    text = "Deseo recibir alertas de WhatsApp con el estado del bus y ubicación en tiempo real de mis encomiendas.",
+-                    fontSize = 12.sp,
+-                    color = Color(0xFF44474D),
+-                    lineHeight = 16.sp,
+-                    modifier = Modifier.padding(top = 10.dp)
+-                )
+-            }
+-        }
+-
+-        // Primary Action Button
+-        PrimaryButton(
+-            text = "Crear cuenta de cliente",
+-            onClick = onSubmit
+-        )
+-
+-        // Encrypted Security Note
+-        TlsEncryptionBadge(
+-            modifier = Modifier.align(Alignment.CenterHorizontally)
+-        )
+-    }
+-}
+-
+-// DRIVER REGISTRATION FORM CONTENT
+-@Composable
+-private fun DriverRegistrationFormContent(
+-    onSubmit: () -> Unit
+-) {
+-    var fullName by remember { mutableStateOf("") }
+-    var email by remember { mutableStateOf("") }
+-    var password by remember { mutableStateOf("") }
+-    var licenseNumber by remember { mutableStateOf("") }
+-    var selectedVehicleType by remember { mutableStateOf("Camión Ligero") }
+-    var vehiclePlate by remember { mutableStateOf("") }
+-    var soatNumber by remember { mutableStateOf("") }
+-    var soatExpiration by remember { mutableStateOf("") }
+-    var termsAccepted by remember { mutableStateOf(false) }
+-    var policiesAccepted by remember { mutableStateOf(false) }
+-
+-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+-
+-        // Header Info
+-        Row(
+-            modifier = Modifier.fillMaxWidth(),
+-            horizontalArrangement = Arrangement.SpaceBetween,
+-            verticalAlignment = Alignment.CenterVertically
+-        ) {
+-            Surface(
+-                color = Color(0xFFE5EEFF),
+-                shape = RoundedCornerShape(16.dp)
+-            ) {
+-                Row(
+-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+-                    verticalAlignment = Alignment.CenterVertically
+-                ) {
+-                    Icon(
+-                        imageVector = Icons.Default.LocalShipping,
+-                        contentDescription = null,
+-                        tint = Secondary,
+-                        modifier = Modifier.size(14.dp)
+-                    )
+-                    Spacer(modifier = Modifier.width(4.dp))
+-                    Text(
+-                        text = "REGISTRO DE CONDUCTOR",
+-                        fontSize = 11.sp,
+-                        fontWeight = FontWeight.Bold,
+-                        color = PrimaryLight
+-                    )
+-                }
+-            }
+-
+-            Surface(
+-                color = Color(0xFFE5EEFF),
+-                shape = RoundedCornerShape(16.dp)
+-            ) {
+-                Text(
+-                    text = "Paso 1 de 2",
+-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+-                    fontSize = 11.sp,
+-                    fontWeight = FontWeight.Bold,
+-                    color = PrimaryLight
+-                )
+-            }
+-        }
+-
+-        Text(
+-            text = "Crea tu cuenta de Conductor",
+-            fontSize = 24.sp,
+-            fontWeight = FontWeight.Bold,
+-            color = PrimaryLight,
+-            fontFamily = FontFamily.Serif
+-        )
+-
+-        Text(
+-            text = "Coordinación logística regional y flete seguro. Selecciona tu perfil operativo para comenzar.",
+-            fontSize = 13.sp,
+-            color = Color(0xFF44474D),
+-            lineHeight = 18.sp
+-        )
+-
+-        // Section 1: Información Personal
+-        CardSectionContainer(
+-            title = "1. Información Personal",
+-            icon = Icons.Default.Badge,
+-            tagText = "Obligatorio",
+-            tagColor = Color(0xFF74777E)
+-        ) {
+-            OutlinedTextField(
+-                value = fullName,
+-                onValueChange = { fullName = it },
+-                label = { Text("Nombre completo") },
+-                placeholder = { Text("Ej. Carlos Mendoza Rivas") },
+-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+-                modifier = Modifier.fillMaxWidth(),
+-                shape = RoundedCornerShape(8.dp),
+-                colors = customTextFieldColors()
+-            )
+-
+-            OutlinedTextField(
+-                value = email,
+-                onValueChange = { email = it },
+-                label = { Text("Correo electrónico") },
+-                placeholder = { Text("operaciones@ejemplo.com") },
+-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+-                modifier = Modifier.fillMaxWidth(),
+-                shape = RoundedCornerShape(8.dp),
+-                colors = customTextFieldColors()
+-            )
+-
+-            PasswordTextField(
+-                value = password,
+-                onValueChange = { password = it },
+-                label = "Contraseña",
+-                placeholder = "Mínimo 8 caracteres"
+-            )
+-
+-            // Selfie biométrica
+-            Text(
+-                text = "Fotografía facial (Selfie biométrica)",
+-                fontSize = 12.sp,
+-                fontWeight = FontWeight.SemiBold,
+-                color = PrimaryLight
+-            )
+-
+-            Box(
+-                modifier = Modifier
+-                    .fillMaxWidth()
+-                    .dashedBorder(1.dp, Color(0xFFC4C6CE), 8.dp)
+-                    .background(Color(0xFFEFF4FF), RoundedCornerShape(8.dp))
+-                    .padding(12.dp)
+-            ) {
+-                Row(
+-                    modifier = Modifier.fillMaxWidth(),
+-                    verticalAlignment = Alignment.CenterVertically,
+-                    horizontalArrangement = Arrangement.SpaceBetween
+-                ) {
+-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+-                        Box {
+-                            Surface(
+-                                modifier = Modifier.size(44.dp),
+-                                shape = CircleShape,
+-                                color = Color(0xFFD3E4FE)
+-                            ) {
+-                                Icon(
+-                                    imageVector = Icons.Default.Person,
+-                                    contentDescription = null,
+-                                    modifier = Modifier
+-                                        .padding(8.dp)
+-                                        .fillMaxSize(),
+-                                    tint = PrimaryLight
+-                                )
+-                            }
+-                            Surface(
+-                                modifier = Modifier
+-                                    .size(16.dp)
+-                                    .align(Alignment.BottomEnd),
+-                                shape = CircleShape,
+-                                color = Secondary
+-                            ) {
+-                                Icon(
+-                                    imageVector = Icons.Default.Add,
+-                                    contentDescription = null,
+-                                    tint = Color.White,
+-                                    modifier = Modifier.padding(2.dp)
+-                                )
+-                            }
+-                        }
+-                        Spacer(modifier = Modifier.width(10.dp))
+-                        Column {
+-                            Text(
+-                                text = "Rostro descubierto y nítido",
+-                                fontSize = 12.sp,
+-                                fontWeight = FontWeight.Bold,
+-                                color = PrimaryLight
+-                            )
+-                            Text(
+-                                text = "Sin gorras ni gafas oscuras",
+-                                fontSize = 11.sp,
+-                                color = Color(0xFF74777E)
+-                            )
+-                        }
+-                    }
+-
+-                    OutlinedButton(
+-                        onClick = { },
+-                        shape = RoundedCornerShape(8.dp),
+-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+-                        border = BorderStroke(1.dp, Color(0xFFC4C6CE))
+-                    ) {
+-                        Text("Tomar foto", fontSize = 12.sp, color = PrimaryLight, fontWeight = FontWeight.Bold)
+-                    }
+-                }
+-            }
+-
+-            // Status Tag
+-            StatusTag(
+-                text = "Validación facial obligatoria",
+-                bgColor = StatusAvailableBg,
+-                textColor = StatusAvailable,
+-                icon = Icons.Default.CheckCircle
+-            )
+-        }
+-
+-        // Section 2: Licencia de Conducción
+-        CardSectionContainer(
+-            title = "2. Licencia de Conducción",
+-            icon = Icons.Default.AssignmentInd,
+-            tagText = "RUNT Vigente",
+-            tagColor = Secondary
+-        ) {
+-            OutlinedTextField(
+-                value = licenseNumber,
+-                onValueChange = { licenseNumber = it },
+-                label = { Text("Número de licencia (Pase)") },
+-                placeholder = { Text("Ej. 1020485934") },
+-                leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
+-                modifier = Modifier.fillMaxWidth(),
+-                shape = RoundedCornerShape(8.dp),
+-                colors = customTextFieldColors()
+-            )
+-
+-            Text(
+-                text = "Cargar documento de licencia",
+-                fontSize = 12.sp,
+-                fontWeight = FontWeight.SemiBold,
+-                color = PrimaryLight
+-            )
+-
+-            Box(
+-                modifier = Modifier
+-                    .fillMaxWidth()
+-                    .dashedBorder(1.dp, Color(0xFFC4C6CE), 8.dp)
+-                    .background(Color(0xFFEFF4FF), RoundedCornerShape(8.dp))
+-                    .padding(16.dp)
+-            ) {
+-                Column(
+-                    modifier = Modifier.fillMaxWidth(),
+-                    horizontalAlignment = Alignment.CenterHorizontally
+-                ) {
+-                    Icon(
+-                        imageVector = Icons.Default.FileUpload,
+-                        contentDescription = null,
+-                        tint = PrimaryLight,
+-                        modifier = Modifier.size(32.dp)
+-                    )
+-                    Spacer(modifier = Modifier.height(4.dp))
+-                    Text(
+-                        text = "Toca para cargar foto o PDF legible",
+-                        fontSize = 12.sp,
+-                        fontWeight = FontWeight.Bold,
+-                        color = PrimaryLight
+-                    )
+-                    Text(
+-                        text = "Frente y reverso en un solo archivo (Máx 5MB)",
+-                        fontSize = 11.sp,
+-                        color = Color(0xFF74777E)
+-                    )
+-                    Spacer(modifier = Modifier.height(8.dp))
+-                    Button(
+-                        onClick = { },
+-                        shape = RoundedCornerShape(8.dp),
+-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD3E4FE)),
+-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+-                    ) {
+-                        Icon(
+-                            imageVector = Icons.Default.FilePresent,
+-                            contentDescription = null,
+-                            tint = PrimaryLight,
+-                            modifier = Modifier.size(16.dp)
+-                        )
+-                        Spacer(modifier = Modifier.width(6.dp))
+-                        Text("Seleccionar archivo", fontSize = 12.sp, color = PrimaryLight, fontWeight = FontWeight.Bold)
+-                    }
+-                }
+-            }
+-        }
+-
+-        // Section 3: Requisitos del Vehículo
+-        CardSectionContainer(
+-            title = "3. Requisitos del Vehículo",
+-            icon = Icons.Default.DirectionsCar,
+-            tagText = "Inspección Vial",
+-            tagColor = Color(0xFF74777E)
+-        ) {
+-            Text(
+-                text = "Tipo de vehículo habilitado",
+-                fontSize = 12.sp,
+-                fontWeight = FontWeight.SemiBold,
+-                color = PrimaryLight
+-            )
+-
+-            Row(
+-                modifier = Modifier.fillMaxWidth(),
+-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+-            ) {
+-                VehicleTypeChip(
+-                    title = "Camión Ligero",
+-                    icon = Icons.Default.LocalShipping,
+-                    isSelected = selectedVehicleType == "Camión Ligero",
+-                    modifier = Modifier.weight(1f),
+-                    onClick = { selectedVehicleType = "Camión Ligero" }
+-                )
+-                VehicleTypeChip(
+-                    title = "Camioneta",
+-                    icon = Icons.Default.AirportShuttle,
+-                    isSelected = selectedVehicleType == "Camioneta",
+-                    modifier = Modifier.weight(1f),
+-                    onClick = { selectedVehicleType = "Camioneta" }
+-                )
+-                VehicleTypeChip(
+-                    title = "Baúl Abierto",
+-                    icon = Icons.Default.DirectionsBus,
+-                    isSelected = selectedVehicleType == "Baúl Abierto",
+-                    modifier = Modifier.weight(1f),
+-                    onClick = { selectedVehicleType = "Baúl Abierto" }
+-                )
+-            }
+-
+-            Row(
+-                modifier = Modifier.fillMaxWidth(),
+-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+-            ) {
+-                OutlinedTextField(
+-                    value = vehiclePlate,
+-                    onValueChange = { vehiclePlate = it },
+-                    label = { Text("Placa del vehículo") },
+-                    placeholder = { Text("AAA-123") },
+-                    leadingIcon = { Icon(Icons.Default.Subtitles, contentDescription = null) },
+-                    modifier = Modifier.weight(1f),
+-                    shape = RoundedCornerShape(8.dp),
+-                    colors = customTextFieldColors()
+-                )
+-
+-                OutlinedTextField(
+-                    value = soatNumber,
+-                    onValueChange = { soatNumber = it },
+-                    label = { Text("Número de SOAT") },
+-                    placeholder = { Text("10094827") },
+-                    leadingIcon = { Icon(Icons.Default.Verified, contentDescription = null) },
+-                    modifier = Modifier.weight(1f),
+-                    shape = RoundedCornerShape(8.dp),
+-                    colors = customTextFieldColors()
+-                )
+-            }
+-
+-            Column {
+-                OutlinedTextField(
+-                    value = soatExpiration,
+-                    onValueChange = { soatExpiration = it },
+-                    label = { Text("Fecha de vencimiento del SOAT") },
+-                    placeholder = { Text("dd/mm/aaaa") },
+-                    leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+-                    trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+-                    modifier = Modifier.fillMaxWidth(),
+-                    shape = RoundedCornerShape(8.dp),
+-                    colors = customTextFieldColors()
+-                )
+-                Text(
+-                    text = "El seguro obligatorio debe tener al menos 30 días de vigencia continua.",
+-                    fontSize = 11.sp,
+-                    color = Color(0xFF74777E),
+-                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+-                )
+-            }
+-
+-            Text(
+-                text = "Foto de Tarjeta de Propiedad o SOAT físico",
+-                fontSize = 12.sp,
+-                fontWeight = FontWeight.SemiBold,
+-                color = PrimaryLight
+-            )
+-
+-            Surface(
+-                modifier = Modifier.fillMaxWidth(),
+-                color = Color(0xFFEFF4FF),
+-                shape = RoundedCornerShape(8.dp),
+-                border = BorderStroke(1.dp, Color(0xFFC4C6CE))
+-            ) {
+-                Row(
+-                    modifier = Modifier.padding(12.dp),
+-                    verticalAlignment = Alignment.CenterVertically,
+-                    horizontalArrangement = Arrangement.SpaceBetween
+-                ) {
+-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+-                        Surface(
+-                            modifier = Modifier.size(36.dp),
+-                            shape = RoundedCornerShape(6.dp),
+-                            color = Color(0xFFD3E4FE)
+-                        ) {
+-                            Icon(
+-                                imageVector = Icons.Default.Description,
+-                                contentDescription = null,
+-                                tint = PrimaryLight,
+-                                modifier = Modifier.padding(8.dp)
+-                            )
+-                        }
+-                        Spacer(modifier = Modifier.width(10.dp))
+-                        Column {
+-                            Text(
+-                                text = "Documento de control vehicular",
+-                                fontSize = 12.sp,
+-                                fontWeight = FontWeight.Bold,
+-                                color = PrimaryLight
+-                            )
+-                            Text(
+-                                text = "Formato JPG, PNG o PDF",
+-                                fontSize = 11.sp,
+-                                color = Color(0xFF74777E)
+-                            )
+-                        }
+-                    }
+-
+-                    Button(
+-                        onClick = { },
+-                        shape = RoundedCornerShape(8.dp),
+-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryLight),
+-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
+-                    ) {
+-                        Text("Subir", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+-                    }
+-                }
+-            }
+-
+-            // Legal Requirement Statuses
+-            Text(
+-                text = "Estado de Requerimientos Legales:",
+-                fontSize = 11.sp,
+-                color = Color(0xFF74777E)
+-            )
+-
+-            Row(
+-                modifier = Modifier.fillMaxWidth(),
+-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+-            ) {
+-                StatusTag(
+-                    text = "✓ RUNT Conductor",
+-                    bgColor = StatusAvailableBg,
+-                    textColor = StatusAvailable
+-                )
+-                StatusTag(
+-                    text = "⏱ Revisión SOAT",
+-                    bgColor = StatusPendingBg,
+-                    textColor = StatusPending
+-                )
+-                StatusTag(
+-                    text = "✓ Carga Asegurada",
+-                    bgColor = Color(0xFFE5EEFF),
+-                    textColor = PrimaryLight
+-                )
+-            }
+-        }
+-
+-        // Checkboxes
+-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+-            Row(
+-                verticalAlignment = Alignment.Top,
+-                modifier = Modifier.fillMaxWidth()
+-            ) {
+-                Checkbox(
+-                    checked = termsAccepted,
+-                    onCheckedChange = { termsAccepted = it },
+-                    colors = CheckboxDefaults.colors(checkedColor = PrimaryLight)
+-                )
+-                Text(
+-                    text = "Acepto los Términos y Condiciones de Ruta Confiable y autorizo el tratamiento de mis datos personales para verificación y seguridad logística.",
+-                    fontSize = 12.sp,
+-                    color = Color(0xFF44474D),
+-                    lineHeight = 16.sp,
+-                    modifier = Modifier.padding(top = 10.dp)
+-                )
+-            }
+-
+-            Row(
+-                verticalAlignment = Alignment.Top,
+-                modifier = Modifier.fillMaxWidth()
+-            ) {
+-                Checkbox(
+-                    checked = policiesAccepted,
+-                    onCheckedChange = { policiesAccepted = it },
+-                    colors = CheckboxDefaults.colors(checkedColor = PrimaryLight)
+-                )
+-                Text(
+-                    text = "Acepto las políticas de validación física e inspección de carga en puestos de control de ruta.",
+-                    fontSize = 12.sp,
+-                    color = Color(0xFF44474D),
+-                    lineHeight = 16.sp,
+-                    modifier = Modifier.padding(top = 10.dp)
+-                )
+-            }
+-        }
+-
+-        // Primary Action Button
+-        PrimaryButton(
+-            text = "Crear cuenta de conductor",
+-            onClick = onSubmit
+-        )
+-    }
+-}
+-
+ @Preview(showBackground = true, heightDp = 1600)
+ @Composable
+-fun ClientRegistrationScreenPreview() {
+-    RutaConfiableTheme {
+-        RegistrationScreen(initialRole = RegistrationRole.CLIENT)
+-    }
+-}
+-
+-@Preview(showBackground = true, heightDp = 1800)
+-@Composable
+-fun DriverRegistrationScreenPreview() {
++fun RegistrationScreenPreview() {
+     RutaConfiableTheme {
+-        RegistrationScreen(initialRole = RegistrationRole.DRIVER)
++        RegistrationScreen()
+     }
+ }
+Index: app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Theme.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package me.mauromax.rutaconfiable.ui.theme\r\n\r\nimport android.os.Build\r\nimport androidx.compose.foundation.isSystemInDarkTheme\r\nimport androidx.compose.material3.MaterialTheme\r\nimport androidx.compose.material3.darkColorScheme\r\nimport androidx.compose.material3.dynamicDarkColorScheme\r\nimport androidx.compose.material3.dynamicLightColorScheme\r\nimport androidx.compose.material3.lightColorScheme\r\nimport androidx.compose.runtime.Composable\r\nimport androidx.compose.ui.platform.LocalContext\r\n\r\nprivate val DarkColorScheme = darkColorScheme(\r\n    primary = PrimaryLight,\r\n    onPrimary = OnPrimary,\r\n    primaryContainer = PrimaryContainer,\r\n    onPrimaryContainer = OnPrimaryContainer,\r\n    secondary = SecondaryContainer,\r\n    onSecondary = OnSecondaryContainer,\r\n    secondaryContainer = SecondaryContainer,\r\n    onSecondaryContainer = OnSecondaryContainer,\r\n    tertiary = TertiaryContainer,\r\n    onTertiary = OnTertiaryContainer,\r\n    background = OnBackground,\r\n    onBackground = Background,\r\n    surface = OnSurface,\r\n    onSurface = Surface,\r\n    error = Error,\r\n    onError = OnError\r\n)\r\n\r\nprivate val LightColorScheme = lightColorScheme(\r\n    primary = PrimaryLight,\r\n    onPrimary = OnPrimary,\r\n    primaryContainer = PrimaryContainer,\r\n    onPrimaryContainer = OnPrimaryContainer,\r\n    secondary = Secondary,\r\n    onSecondary = OnSecondary,\r\n    secondaryContainer = SecondaryContainer,\r\n    onSecondaryContainer = OnSecondaryContainer,\r\n    tertiary = Tertiary,\r\n    onTertiary = OnTertiary,\r\n    tertiaryContainer = TertiaryContainer,\r\n    onTertiaryContainer = OnTertiaryContainer,\r\n    background = Background,\r\n    onBackground = OnBackground,\r\n    surface = Surface,\r\n    onSurface = OnSurface,\r\n    surfaceVariant = SurfaceVariant,\r\n    onSurfaceVariant = OnSurfaceVariant,\r\n    outline = Outline,\r\n    outlineVariant = OutlineVariant,\r\n    error = Error,\r\n    onError = OnError,\r\n    errorContainer = ErrorContainer,\r\n    onErrorContainer = OnErrorContainer\r\n)\r\n\r\n@Composable\r\nfun RutaConfiableTheme(\r\n    darkTheme: Boolean = isSystemInDarkTheme(),\r\n    dynamicColor: Boolean = false,\r\n    content: @Composable () -> Unit\r\n) {\r\n    val colorScheme = when {\r\n        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {\r\n            val context = LocalContext.current\r\n            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)\r\n        }\r\n\r\n        darkTheme -> DarkColorScheme\r\n        else -> LightColorScheme\r\n    }\r\n\r\n    MaterialTheme(\r\n        colorScheme = colorScheme,\r\n        typography = Typography,\r\n        content = content\r\n    )\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Theme.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Theme.kt
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Theme.kt	(revision 74328ae60b5eb6f728f45f89247c1e625b2bea63)
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/theme/Theme.kt	(date 1794494958546)
+@@ -1,7 +1,7 @@
++
+ package me.mauromax.rutaconfiable.ui.theme
+ 
+ import android.os.Build
+-import androidx.compose.foundation.isSystemInDarkTheme
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.darkColorScheme
+ import androidx.compose.material3.dynamicDarkColorScheme
+@@ -58,14 +58,15 @@
+ 
+ @Composable
+ fun RutaConfiableTheme(
+-    darkTheme: Boolean = isSystemInDarkTheme(),
++    darkTheme: Boolean = false,
+     dynamicColor: Boolean = false,
+     content: @Composable () -> Unit
+ ) {
+     val colorScheme = when {
+         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+             val context = LocalContext.current
+-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
++            if (darkTheme) dynamicDarkColorScheme(context)
++            else dynamicLightColorScheme(context)
+         }
+ 
+         darkTheme -> DarkColorScheme
+Index: app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package me.mauromax.rutaconfiable.ui.screens\r\n\r\nimport androidx.compose.foundation.BorderStroke\r\nimport androidx.compose.foundation.clickable\r\nimport androidx.compose.foundation.layout.*\r\nimport androidx.compose.foundation.rememberScrollState\r\nimport androidx.compose.foundation.shape.RoundedCornerShape\r\nimport androidx.compose.foundation.verticalScroll\r\nimport androidx.compose.material.icons.Icons\r\nimport androidx.compose.material.icons.automirrored.filled.ArrowForward\r\nimport androidx.compose.material.icons.filled.LocalShipping\r\nimport androidx.compose.material.icons.filled.Person\r\nimport androidx.compose.material3.*\r\nimport androidx.compose.runtime.*\r\nimport androidx.compose.ui.Alignment\r\nimport androidx.compose.ui.Modifier\r\nimport androidx.compose.ui.graphics.Color\r\nimport androidx.compose.ui.text.font.FontFamily\r\nimport androidx.compose.ui.text.font.FontWeight\r\nimport androidx.compose.ui.text.style.TextAlign\r\nimport androidx.compose.ui.tooling.preview.Preview\r\nimport androidx.compose.ui.unit.dp\r\nimport androidx.compose.ui.unit.sp\r\nimport me.mauromax.rutaconfiable.ui.components.*\r\nimport me.mauromax.rutaconfiable.ui.theme.*\r\n\r\n@OptIn(ExperimentalMaterial3Api::class)\r\n@Composable\r\nfun LoginScreen(\r\n    onBackClick: () -> Unit = {},\r\n    onLoginSuccess: () -> Unit = {},\r\n    onForgotPasswordClick: () -> Unit = {},\r\n    onRegisterClick: () -> Unit = {}\r\n) {\r\n    var selectedRole by remember { mutableStateOf(\"Conductor\") }\r\n    var identifier by remember { mutableStateOf(\"\") }\r\n    var password by remember { mutableStateOf(\"\") }\r\n    var rememberDevice by remember { mutableStateOf(true) }\r\n\r\n    Scaffold(\r\n        topBar = {\r\n            StandardAppTopBar(\r\n                onBackClick = onBackClick,\r\n                showHelpIcon = true,\r\n                showSecurityBadge = false\r\n            )\r\n        },\r\n        containerColor = Background\r\n    ) { innerPadding ->\r\n        Column(\r\n            modifier = Modifier\r\n                .fillMaxSize()\r\n                .padding(innerPadding)\r\n                .verticalScroll(rememberScrollState())\r\n                .padding(horizontal = 16.dp, vertical = 12.dp),\r\n            verticalArrangement = Arrangement.spacedBy(16.dp)\r\n        ) {\r\n\r\n            // Title Header\r\n            Text(\r\n                text = \"Iniciar Sesión\",\r\n                fontSize = 26.sp,\r\n                fontWeight = FontWeight.Bold,\r\n                color = PrimaryLight,\r\n                fontFamily = FontFamily.Serif\r\n            )\r\n\r\n            Text(\r\n                text = \"Ingresa a tu cuenta para gestionar tus viajes, fletes y rutas\",\r\n                fontSize = 13.sp,\r\n                color = Color(0xFF44474D),\r\n                lineHeight = 18.sp\r\n            )\r\n\r\n            // Segmented Role Selector\r\n            Surface(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                color = Color(0xFFEFF4FF),\r\n                shape = RoundedCornerShape(12.dp)\r\n            ) {\r\n                Row(\r\n                    modifier = Modifier\r\n                        .fillMaxWidth()\r\n                        .padding(4.dp)\r\n                ) {\r\n                    RoleOptionButton(\r\n                        text = \"Conductor / Aliado\",\r\n                        icon = Icons.Default.LocalShipping,\r\n                        isSelected = selectedRole == \"Conductor\",\r\n                        modifier = Modifier.weight(1f),\r\n                        onClick = { selectedRole = \"Conductor\" }\r\n                    )\r\n                    RoleOptionButton(\r\n                        text = \"Cliente / Pasajero\",\r\n                        icon = Icons.Default.Person,\r\n                        isSelected = selectedRole == \"Cliente\",\r\n                        modifier = Modifier.weight(1f),\r\n                        onClick = { selectedRole = \"Cliente\" }\r\n                    )\r\n                }\r\n            }\r\n\r\n            // Form Card\r\n            Surface(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                color = Color.White,\r\n                shape = RoundedCornerShape(12.dp),\r\n                border = BorderStroke(1.dp, Color(0xFFC4C6CE)),\r\n                shadowElevation = 1.dp\r\n            ) {\r\n                Column(\r\n                    modifier = Modifier.padding(16.dp),\r\n                    verticalArrangement = Arrangement.spacedBy(14.dp)\r\n                ) {\r\n                    // Identifier Field (Phone / Email)\r\n                    Column {\r\n                        Text(\r\n                            text = \"Correo electrónico o celular\",\r\n                            fontSize = 12.sp,\r\n                            fontWeight = FontWeight.SemiBold,\r\n                            color = PrimaryLight,\r\n                            modifier = Modifier.padding(bottom = 4.dp)\r\n                        )\r\n                        PhoneWithCountrySelectorField(\r\n                            phoneValue = identifier,\r\n                            onPhoneChange = { identifier = it },\r\n                            placeholderText = \"Ej. 310 987 6543 o usuario@ejemplo.com\"\r\n                        )\r\n                    }\r\n\r\n                    // Password Field\r\n                    Column {\r\n                        Row(\r\n                            modifier = Modifier.fillMaxWidth(),\r\n                            horizontalArrangement = Arrangement.SpaceBetween,\r\n                            verticalAlignment = Alignment.CenterVertically\r\n                        ) {\r\n                            Text(\r\n                                text = \"Contraseña segura\",\r\n                                fontSize = 12.sp,\r\n                                fontWeight = FontWeight.SemiBold,\r\n                                color = PrimaryLight\r\n                            )\r\n                            Text(\r\n                                text = \"¿Olvidaste tu contraseña?\",\r\n                                fontSize = 12.sp,\r\n                                fontWeight = FontWeight.Bold,\r\n                                color = Secondary,\r\n                                modifier = Modifier.clickable { onForgotPasswordClick() }\r\n                            )\r\n                        }\r\n                        Spacer(modifier = Modifier.height(4.dp))\r\n                        PasswordTextField(\r\n                            value = password,\r\n                            onValueChange = { password = it },\r\n                            label = \"Tu clave de acceso\",\r\n                            placeholder = \"Ingresa tu contraseña\"\r\n                        )\r\n                    }\r\n\r\n                    // Remember Device Checkbox\r\n                    Row(\r\n                        verticalAlignment = Alignment.CenterVertically,\r\n                        modifier = Modifier.fillMaxWidth()\r\n                    ) {\r\n                        Checkbox(\r\n                            checked = rememberDevice,\r\n                            onCheckedChange = { rememberDevice = it },\r\n                            colors = CheckboxDefaults.colors(checkedColor = PrimaryLight)\r\n                        )\r\n                        Text(\r\n                            text = \"Recordar mis datos en este dispositivo\",\r\n                            fontSize = 12.sp,\r\n                            color = Color(0xFF44474D)\r\n                        )\r\n                    }\r\n\r\n                    // Submit Action Button\r\n                    PrimaryButton(\r\n                        text = \"Ingresar\",\r\n                        onClick = onLoginSuccess\r\n                    )\r\n                }\r\n            }\r\n\r\n            // Register Prompt Card Box\r\n            Surface(\r\n                modifier = Modifier\r\n                    .fillMaxWidth()\r\n                    .clickable { onRegisterClick() },\r\n                color = Color(0xFFEFF4FF),\r\n                shape = RoundedCornerShape(8.dp),\r\n                border = BorderStroke(1.dp, Color(0xFFC4C6CE))\r\n            ) {\r\n                Row(\r\n                    modifier = Modifier.padding(14.dp),\r\n                    horizontalArrangement = Arrangement.Center,\r\n                    verticalAlignment = Alignment.CenterVertically\r\n                ) {\r\n                    Text(\r\n                        text = \"¿No tienes una cuenta todavía? \",\r\n                        fontSize = 13.sp,\r\n                        color = Color(0xFF44474D)\r\n                    )\r\n                    Text(\r\n                        text = \"Regístrate aquí\",\r\n                        fontSize = 13.sp,\r\n                        fontWeight = FontWeight.Bold,\r\n                        color = PrimaryLight\r\n                    )\r\n                }\r\n            }\r\n\r\n            Spacer(modifier = Modifier.height(8.dp))\r\n\r\n            // Encryption Badge\r\n            TlsEncryptionBadge(\r\n                modifier = Modifier.align(Alignment.CenterHorizontally)\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Preview(showBackground = true)\r\n@Composable\r\nfun LoginScreenPreview() {\r\n    RutaConfiableTheme {\r\n        LoginScreen()\r\n    }\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt	(revision 74328ae60b5eb6f728f45f89247c1e625b2bea63)
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt	(date 1794494958562)
+@@ -1,5 +1,8 @@
++
+ package me.mauromax.rutaconfiable.ui.screens
+ 
++
++
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.layout.*
+@@ -7,35 +10,37 @@
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material.icons.Icons
+-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+ import androidx.compose.material.icons.filled.LocalShipping
+ import androidx.compose.material.icons.filled.Person
+ import androidx.compose.material3.*
+ import androidx.compose.runtime.*
++import androidx.compose.runtime.saveable.rememberSaveable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+-import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.text.font.FontFamily
+ import androidx.compose.ui.text.font.FontWeight
+-import androidx.compose.ui.text.style.TextAlign
+ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ import me.mauromax.rutaconfiable.ui.components.*
+ import me.mauromax.rutaconfiable.ui.theme.*
+ 
+-@OptIn(ExperimentalMaterial3Api::class)
+ @Composable
+ fun LoginScreen(
+     onBackClick: () -> Unit = {},
+-    onLoginSuccess: () -> Unit = {},
++    onLoginSuccess: (RegistrationRole) -> Unit = {},
+     onForgotPasswordClick: () -> Unit = {},
+     onRegisterClick: () -> Unit = {}
+ ) {
+-    var selectedRole by remember { mutableStateOf("Conductor") }
+-    var identifier by remember { mutableStateOf("") }
+-    var password by remember { mutableStateOf("") }
+-    var rememberDevice by remember { mutableStateOf(true) }
++    var selectedRole by rememberSaveable {
++        mutableStateOf(RegistrationRole.DRIVER)
++    }
++    var validationError by rememberSaveable {
++        mutableStateOf<String?>(null)
++    }
++    var identifier by rememberSaveable { mutableStateOf("") }
++    var password by rememberSaveable { mutableStateOf("") }
++    var rememberDevice by rememberSaveable { mutableStateOf(true) }
+ 
+     Scaffold(
+         topBar = {
+@@ -47,6 +52,7 @@
+         },
+         containerColor = Background
+     ) { innerPadding ->
++
+         Column(
+             modifier = Modifier
+                 .fillMaxSize()
+@@ -56,7 +62,6 @@
+             verticalArrangement = Arrangement.spacedBy(16.dp)
+         ) {
+ 
+-            // Title Header
+             Text(
+                 text = "Iniciar Sesión",
+                 fontSize = 26.sp,
+@@ -68,14 +73,13 @@
+             Text(
+                 text = "Ingresa a tu cuenta para gestionar tus viajes, fletes y rutas",
+                 fontSize = 13.sp,
+-                color = Color(0xFF44474D),
++                color = TextSecondary,
+                 lineHeight = 18.sp
+             )
+ 
+-            // Segmented Role Selector
+             Surface(
+                 modifier = Modifier.fillMaxWidth(),
+-                color = Color(0xFFEFF4FF),
++                color = RoleSelectorBackground,
+                 shape = RoundedCornerShape(12.dp)
+             ) {
+                 Row(
+@@ -86,33 +90,39 @@
+                     RoleOptionButton(
+                         text = "Conductor / Aliado",
+                         icon = Icons.Default.LocalShipping,
+-                        isSelected = selectedRole == "Conductor",
++                        isSelected = selectedRole == RegistrationRole.DRIVER,
+                         modifier = Modifier.weight(1f),
+-                        onClick = { selectedRole = "Conductor" }
++                        onClick = {
++                            selectedRole = RegistrationRole.DRIVER
++                            validationError = null
++                        }
+                     )
++
+                     RoleOptionButton(
+                         text = "Cliente / Pasajero",
+                         icon = Icons.Default.Person,
+-                        isSelected = selectedRole == "Cliente",
++                        isSelected = selectedRole == RegistrationRole.CLIENT,
+                         modifier = Modifier.weight(1f),
+-                        onClick = { selectedRole = "Cliente" }
++                        onClick = {
++                            selectedRole = RegistrationRole.CLIENT
++                            validationError = null
++                        }
+                     )
+                 }
+             }
+ 
+-            // Form Card
+             Surface(
+                 modifier = Modifier.fillMaxWidth(),
+-                color = Color.White,
++                color = MaterialTheme.colorScheme.surface,
+                 shape = RoundedCornerShape(12.dp),
+-                border = BorderStroke(1.dp, Color(0xFFC4C6CE)),
++                border = BorderStroke(1.dp, OutlineVariant),
+                 shadowElevation = 1.dp
+             ) {
+                 Column(
+                     modifier = Modifier.padding(16.dp),
+                     verticalArrangement = Arrangement.spacedBy(14.dp)
+                 ) {
+-                    // Identifier Field (Phone / Email)
++
+                     Column {
+                         Text(
+                             text = "Correo electrónico o celular",
+@@ -121,14 +131,17 @@
+                             color = PrimaryLight,
+                             modifier = Modifier.padding(bottom = 4.dp)
+                         )
++
+                         PhoneWithCountrySelectorField(
+                             phoneValue = identifier,
+-                            onPhoneChange = { identifier = it },
++                            onPhoneChange = {
++                                identifier = it
++                                validationError = null
++                            },
+                             placeholderText = "Ej. 310 987 6543 o usuario@ejemplo.com"
+                         )
+                     }
+ 
+-                    // Password Field
+                     Column {
+                         Row(
+                             modifier = Modifier.fillMaxWidth(),
+@@ -141,24 +154,31 @@
+                                 fontWeight = FontWeight.SemiBold,
+                                 color = PrimaryLight
+                             )
++
+                             Text(
+                                 text = "¿Olvidaste tu contraseña?",
+                                 fontSize = 12.sp,
+                                 fontWeight = FontWeight.Bold,
+                                 color = Secondary,
+-                                modifier = Modifier.clickable { onForgotPasswordClick() }
++                                modifier = Modifier.clickable {
++                                    onForgotPasswordClick()
++                                }
+                             )
+                         }
++
+                         Spacer(modifier = Modifier.height(4.dp))
++
+                         PasswordTextField(
+                             value = password,
+-                            onValueChange = { password = it },
++                            onValueChange = {
++                                password = it
++                                validationError = null
++                            },
+                             label = "Tu clave de acceso",
+                             placeholder = "Ingresa tu contraseña"
+                         )
+                     }
+ 
+-                    // Remember Device Checkbox
+                     Row(
+                         verticalAlignment = Alignment.CenterVertically,
+                         modifier = Modifier.fillMaxWidth()
+@@ -166,31 +186,67 @@
+                         Checkbox(
+                             checked = rememberDevice,
+                             onCheckedChange = { rememberDevice = it },
+-                            colors = CheckboxDefaults.colors(checkedColor = PrimaryLight)
++                            colors = CheckboxDefaults.colors(
++                                checkedColor = PrimaryLight
++                            )
+                         )
++
+                         Text(
+                             text = "Recordar mis datos en este dispositivo",
+                             fontSize = 12.sp,
+-                            color = Color(0xFF44474D)
++                            color = TextSecondary
+                         )
+                     }
+ 
+-                    // Submit Action Button
++                    validationError?.let {
++                        Text(
++                            text = it,
++                            color = MaterialTheme.colorScheme.error,
++                            fontSize = 12.sp
++                        )
++                    }
++
+                     PrimaryButton(
+                         text = "Ingresar",
+-                        onClick = onLoginSuccess
++                        onClick = {
++                            val cleanIdentifier = identifier.trim()
++                            val digits = cleanIdentifier.filter { it.isDigit() }
++
++                            val validEmail =
++                                android.util.Patterns.EMAIL_ADDRESS
++                                    .matcher(cleanIdentifier)
++                                    .matches()
++
++                            val validPhone = digits.length in 7..15
++
++                            validationError = when {
++                                cleanIdentifier.isBlank() ->
++                                    "Ingresa tu correo o número celular."
++
++                                !validEmail && !validPhone ->
++                                    "Ingresa un correo válido o un número celular válido."
++
++                                password.length < 8 ->
++                                    "La contraseña debe tener al menos 8 caracteres."
++
++                                else -> null
++                            }
++
++                            if (validationError == null) {
++                                onLoginSuccess(selectedRole)
++                            }
++                        }
+                     )
+                 }
+             }
+ 
+-            // Register Prompt Card Box
+             Surface(
+                 modifier = Modifier
+                     .fillMaxWidth()
+                     .clickable { onRegisterClick() },
+-                color = Color(0xFFEFF4FF),
++                color = RoleSelectorBackground,
+                 shape = RoundedCornerShape(8.dp),
+-                border = BorderStroke(1.dp, Color(0xFFC4C6CE))
++                border = BorderStroke(1.dp, OutlineVariant)
+             ) {
+                 Row(
+                     modifier = Modifier.padding(14.dp),
+@@ -200,8 +256,9 @@
+                     Text(
+                         text = "¿No tienes una cuenta todavía? ",
+                         fontSize = 13.sp,
+-                        color = Color(0xFF44474D)
++                        color = TextSecondary
+                     )
++
+                     Text(
+                         text = "Regístrate aquí",
+                         fontSize = 13.sp,
+@@ -213,7 +270,6 @@
+ 
+             Spacer(modifier = Modifier.height(8.dp))
+ 
+-            // Encryption Badge
+             TlsEncryptionBadge(
+                 modifier = Modifier.align(Alignment.CenterHorizontally)
+             )

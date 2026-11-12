@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "123456789012",
-    "project_id": "ruta-confiable-mock",
-    "storage_bucket": "ruta-confiable-mock.appspot.com"
+    "project_number": "467801237337",
+    "project_id": "rutaconfiable-7aa63",
+    "storage_bucket": "rutaconfiable-7aa63.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+        "mobilesdk_app_id": "1:467801237337:android:d175464da2ea2a7e754e48",
         "android_client_info": {
           "package_name": "me.mauromax.rutaconfiable"
         }
@@ -15,18 +15,12 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyMockKeyForDevelopmentAndTestingPurposesOnly"
+          "current_key": "AIzaSyAbxKRM1y2vPwiUFjpuRbtM8DvtEH4mS6k"
         }
       ],
       "services": {
-        "analytics_service": {
-          "status": "1"
-        },
-        "app_invite_service": {
-          "status": "1"
-        },
-        "ads_service": {
-          "status": "1"
+        "appinvite_service": {
+          "other_platform_oauth_client": []
         }
       }
     }
