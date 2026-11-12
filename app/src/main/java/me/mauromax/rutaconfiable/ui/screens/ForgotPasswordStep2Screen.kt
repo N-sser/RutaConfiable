@@ -6,8 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,17 +15,51 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import me.mauromax.rutaconfiable.ui.components.*
+import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
 import me.mauromax.rutaconfiable.ui.theme.*
+
+private const val RESEND_COOLDOWN_SECONDS = 60
 
 @Composable
 fun ForgotPasswordStep2Screen(
+    email: String = "",
     onBackClick: () -> Unit = {},
-    onResetPasswordSuccess: () -> Unit = {}
+    onBackToLogin: () -> Unit = {}
 ) {
-    var otpCode by remember { mutableStateOf("482") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    var secondsLeft by remember { mutableIntStateOf(RESEND_COOLDOWN_SECONDS) }
+    var isSending by remember { mutableStateOf(false) }
+    var infoMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(secondsLeft) {
+        if (secondsLeft > 0) {
+            delay(1000)
+            secondsLeft--
+        }
+    }
+
+    fun resend() {
+        if (secondsLeft > 0 || isSending || email.isBlank()) return
+        isSending = true
+        infoMessage = null
+        errorMessage = null
+        scope.launch {
+            AuthRepository.sendPasswordReset(email)
+                .onSuccess {
+                    isSending = false
+                    secondsLeft = RESEND_COOLDOWN_SECONDS
+                    infoMessage = "Te enviamos el enlace de nuevo."
+                }
+                .onFailure { e ->
+                    isSending = false
+                    errorMessage = AuthRepository.friendlyError(e)
+                }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -35,74 +68,66 @@ fun ForgotPasswordStep2Screen(
         containerColor = Background
     ) { innerPadding ->
         ScreenColumn(innerPadding) {
-            StepProgressBarCard() // paso 2 de 2 (valores por defecto)
+            StepProgressBarCard(stepTitle = "Revisa tu correo")
 
             AppCard(Modifier.fillMaxWidth(), padding = 16.dp, spacing = 14.dp) {
                 PillTag {
-                    Icon(Icons.Default.Shield, null, Modifier.size(14.dp), tint = Secondary)
+                    Icon(Icons.Default.MarkEmailRead, null, Modifier.size(14.dp), tint = Secondary)
                     Spacer(Modifier.width(4.dp))
-                    Text("Acceso Seguro de Transporte", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                    Text("Enlace enviado", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
                 }
 
-                ScreenTitle("Verificación y Nueva Clave")
-                BodyText("Ingresa el código de 6 dígitos que enviamos a tu correo/teléfono y define tu nueva contraseña segura.")
-
-                // Código de 6 dígitos
-                Column {
-                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                        FieldLabel("Código de Verificación")
-                        Hint("6 dígitos")
+                ScreenTitle("Revisa tu correo")
+                BodyText(
+                    if (email.isBlank()) {
+                        "Si el correo está registrado, te enviamos un enlace para crear tu nueva contraseña."
+                    } else {
+                        "Si $email está registrado, te enviamos un enlace para crear tu nueva contraseña. Ábrelo, define tu clave y vuelve aquí para iniciar sesión."
                     }
-                    Spacer(Modifier.height(6.dp))
-                    SixDigitCodeInput(otpCode, { otpCode = it })
-                    Spacer(Modifier.height(6.dp))
-                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.AccessTime, null, Modifier.size(14.dp), tint = Outline)
-                            Spacer(Modifier.width(4.dp))
-                            Hint("Reenviar código en ")
-                            Text("00:45", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                )
+
+                SecurityAdviceBox(
+                    message = "Si no lo ves, revisa la carpeta de spam o correo no deseado. El enlace tiene un tiempo limitado de validez."
+                )
+
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccessTime, null, Modifier.size(14.dp), tint = Outline)
+                        Spacer(Modifier.width(4.dp))
+                        if (secondsLeft > 0) {
+                            Hint("Reenviar enlace en ")
+                            Text(
+                                "00:%02d".format(secondsLeft), fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold, color = Secondary
+                            )
+                        } else {
+                            Hint("¿No te llegó?")
                         }
+                    }
+                    if (secondsLeft == 0) {
                         Text(
-                            "Reenviar ahora", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                            color = Secondary, modifier = Modifier.clickable { }
+                            if (isSending) "Enviando..." else "Reenviar ahora",
+                            fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Secondary,
+                            modifier = Modifier.clickable(enabled = !isSending) { resend() }
                         )
                     }
                 }
 
-                PasswordTextField(newPassword, { newPassword = it }, "Nueva Contraseña", "••••••••••••")
-
-                Column {
-                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                        FieldLabel("Confirmar Contraseña")
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, null, Modifier.size(14.dp), tint = StatusAvailable)
-                            Spacer(Modifier.width(4.dp))
-                            Text("Coinciden", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = StatusAvailable)
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    PasswordTextField(confirmPassword, { confirmPassword = it }, "", "••••••••••••")
+                infoMessage?.let { message ->
+                    Text(message, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = StatusAvailable)
                 }
-
-                // Requisitos
-                Surface(Modifier.fillMaxWidth(), color = SurfaceSoft, shape = RoundedCornerShape(8.dp)) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                errorMessage?.let { message ->
+                    Surface(Modifier.fillMaxWidth(), color = ErrorContainer, shape = RoundedCornerShape(8.dp)) {
                         Text(
-                            "REQUISITOS DE SEGURIDAD", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                            color = PrimaryLight, letterSpacing = 0.5.sp
+                            message, Modifier.padding(12.dp),
+                            fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnErrorContainer
                         )
-                        listOf(
-                            "Mínimo 8 caracteres",
-                            "Al menos un número o símbolo (!@#$)",
-                            "Al menos una letra mayúscula"
-                        ).forEach { RequirementItem(it) }
                     }
                 }
 
-                PrimaryButton("Restablecer contraseña y acceder", onResetPasswordSuccess)
+                PrimaryButton("Volver a Iniciar Sesión", onBackToLogin)
                 SecondaryOutlinedButton(
-                    "Volver a Iniciar Sesión", onBackClick,
+                    "Usar otro correo", onBackClick,
                     leadingIcon = Icons.AutoMirrored.Filled.ArrowBack
                 )
             }
@@ -112,17 +137,8 @@ fun ForgotPasswordStep2Screen(
     }
 }
 
-@Composable
-private fun RequirementItem(text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.CheckCircle, null, Modifier.size(14.dp), tint = StatusAvailable)
-        Spacer(Modifier.width(6.dp))
-        Text(text, fontSize = 11.sp, color = OnSurfaceVariant)
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 fun ForgotPasswordStep2ScreenPreview() {
-    RutaConfiableTheme { ForgotPasswordStep2Screen() }
+    RutaConfiableTheme { ForgotPasswordStep2Screen(email = "usuario@ejemplo.com") }
 }

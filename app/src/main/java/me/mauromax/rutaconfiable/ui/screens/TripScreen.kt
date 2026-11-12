@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -77,7 +78,9 @@ data class AvailableTrip(
     val destination: String = "",
     val date: String = "",
     val hasCargo: Boolean = true,
-    val hasSeats: Boolean = true
+    val hasSeats: Boolean = true,
+    val driverUid: String = "",
+    val createdAt: Long = 0L
 )
 
 @Composable
@@ -97,6 +100,13 @@ fun TripScreen(
     var selectedId by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
+
+    // Escucha los viajes de Firestore mientras esta pantalla está visible.
+    val isPreview = LocalInspectionMode.current
+    DisposableEffect(Unit) {
+        if (!isPreview) TripRepository.startListening()
+        onDispose { if (!isPreview) TripRepository.stopListening() }
+    }
     var isGettingLocation by remember { mutableStateOf(false) }
     var liveLocation by remember { mutableStateOf<String?>(null) }
     var isTrackingLive by remember { mutableStateOf(false) }
@@ -355,8 +365,12 @@ fun TripScreen(
                 AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
                     Icon(Icons.Default.Map, null, Modifier.size(32.dp).align(Alignment.CenterHorizontally), tint = Outline)
                     Text(
-                        if (trips.isEmpty()) "Aún no hay viajes publicados."
-                        else "No hay viajes que coincidan con tu búsqueda.",
+                        when {
+                            trips.isEmpty() && TripRepository.loadError != null -> TripRepository.loadError!!
+                            trips.isEmpty() && TripRepository.isLoading -> "Cargando viajes..."
+                            trips.isEmpty() -> "Aún no hay viajes publicados."
+                            else -> "No hay viajes que coincidan con tu búsqueda."
+                        },
                         fontSize = 12.sp, color = OnSurfaceVariant, textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )

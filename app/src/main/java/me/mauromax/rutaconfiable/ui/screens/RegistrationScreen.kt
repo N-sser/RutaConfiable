@@ -27,7 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import me.mauromax.rutaconfiable.ui.components.*
+import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
 import me.mauromax.rutaconfiable.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -80,11 +82,11 @@ fun RegistrationScreen(
             ) { currentRole = RegistrationRole.entries[it] }
 
             if (currentRole == RegistrationRole.DRIVER) {
-                DriverForm { onRegistrationSubmitted(RegistrationRole.DRIVER) }
+                DriverForm(onRegistered = { onRegistrationSubmitted(RegistrationRole.DRIVER) })
             } else {
                 ClientForm(
                     onAddPaymentClick = onAddPaymentClick,
-                    onSubmit = { onRegistrationSubmitted(RegistrationRole.CLIENT) }
+                    onRegistered = { onRegistrationSubmitted(RegistrationRole.CLIENT) }
                 )
             }
 
@@ -143,7 +145,7 @@ private fun isValidSoatDate(v: String): Boolean {
 // ---------------------------------------------------------------- CLIENTE
 
 @Composable
-private fun ClientForm(onAddPaymentClick: () -> Unit, onSubmit: () -> Unit) {
+private fun ClientForm(onAddPaymentClick: () -> Unit, onRegistered: () -> Unit) {
     var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
@@ -153,6 +155,36 @@ private fun ClientForm(onAddPaymentClick: () -> Unit, onSubmit: () -> Unit) {
     var selfieOk by rememberSaveable { mutableStateOf(false) }
     var terms by rememberSaveable { mutableStateOf(false) }
     var whatsapp by rememberSaveable { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    fun submit() {
+        errorMessage = null
+        isLoading = true
+        scope.launch {
+            AuthRepository.register(
+                email = email.trim().lowercase(),
+                password = password,
+                name = fullName.trim(),
+                role = "client",
+                profile = mapOf(
+                    "phone" to phone.filter { it.isDigit() },
+                    "phoneCountryCode" to "+57",
+                    "documentType" to documentType,
+                    "documentNumber" to documentNumber.filter { it.isLetterOrDigit() },
+                    "termsAccepted" to terms,
+                    "whatsappAlertsAccepted" to whatsapp
+                )
+            ).onSuccess {
+                isLoading = false
+                onRegistered()
+            }.onFailure { e ->
+                isLoading = false
+                errorMessage = AuthRepository.friendlyError(e)
+            }
+        }
+    }
 
     val context = LocalContext.current
     val validateSelfie = {
@@ -244,7 +276,12 @@ private fun ClientForm(onAddPaymentClick: () -> Unit, onSubmit: () -> Unit) {
         }
 
         if (missing.isNotEmpty()) Hint("Falta: " + missing.joinToString(", ") + ".")
-        PrimaryButton(text = "Crear cuenta de cliente", onClick = onSubmit, enabled = missing.isEmpty())
+        errorMessage?.let { ErrorBanner(it) }
+        PrimaryButton(
+            text = if (isLoading) "Creando cuenta..." else "Crear cuenta de cliente",
+            onClick = { submit() },
+            enabled = missing.isEmpty() && !isLoading
+        )
         TlsEncryptionBadge(Modifier.align(Alignment.CenterHorizontally))
     }
 }
@@ -252,7 +289,7 @@ private fun ClientForm(onAddPaymentClick: () -> Unit, onSubmit: () -> Unit) {
 // -------------------------------------------------------------- CONDUCTOR
 
 @Composable
-private fun DriverForm(onSubmit: () -> Unit) {
+private fun DriverForm(onRegistered: () -> Unit) {
     var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
@@ -270,6 +307,41 @@ private fun DriverForm(onSubmit: () -> Unit) {
     var showDatePicker by remember { mutableStateOf(false) }
     var terms by rememberSaveable { mutableStateOf(false) }
     var policies by rememberSaveable { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    fun submit() {
+        errorMessage = null
+        isLoading = true
+        scope.launch {
+            AuthRepository.register(
+                email = email.trim().lowercase(),
+                password = password,
+                name = fullName.trim(),
+                role = "driver",
+                profile = mapOf(
+                    "phone" to phone.filter { it.isDigit() },
+                    "phoneCountryCode" to "+57",
+                    "documentType" to documentType,
+                    "documentNumber" to documentNumber.filter { it.isLetterOrDigit() },
+                    "licenseNumber" to license.trim(),
+                    "vehicleType" to vehicleType,
+                    "vehiclePlate" to plate.trim().uppercase().replace("-", ""),
+                    "soatNumber" to soat.trim(),
+                    "soatExpiration" to soatDate.trim(),
+                    "termsAccepted" to terms,
+                    "policiesAccepted" to policies
+                )
+            ).onSuccess {
+                isLoading = false
+                onRegistered()
+            }.onFailure { e ->
+                isLoading = false
+                errorMessage = AuthRepository.friendlyError(e)
+            }
+        }
+    }
 
     val docMimeTypes = arrayOf("image/*", "application/pdf")
     val context = LocalContext.current
@@ -410,11 +482,26 @@ private fun DriverForm(onSubmit: () -> Unit) {
         }
 
         if (missing.isNotEmpty()) Hint("Falta: " + missing.joinToString(", ") + ".")
-        PrimaryButton(text = "Crear cuenta de conductor", onClick = onSubmit, enabled = missing.isEmpty())
+        errorMessage?.let { ErrorBanner(it) }
+        PrimaryButton(
+            text = if (isLoading) "Creando cuenta..." else "Crear cuenta de conductor",
+            onClick = { submit() },
+            enabled = missing.isEmpty() && !isLoading
+        )
     }
 }
 
 // ------------------------------------------------------ PIEZAS REUTILIZABLES
+
+@Composable
+private fun ErrorBanner(message: String) {
+    Surface(Modifier.fillMaxWidth(), color = ErrorContainer, shape = RoundedCornerShape(8.dp)) {
+        Text(
+            message, Modifier.padding(12.dp),
+            fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnErrorContainer
+        )
+    }
+}
 
 @Composable
 private fun PhoneField(phone: String, onChange: (String) -> Unit) {

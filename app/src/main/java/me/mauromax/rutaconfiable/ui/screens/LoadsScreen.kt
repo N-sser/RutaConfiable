@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import me.mauromax.rutaconfiable.ui.components.data.TripRepository
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
@@ -57,6 +58,8 @@ fun LoadsScreen(
     var seatPrice by remember { mutableStateOf("") }
 
     var error by remember { mutableStateOf<String?>(null) }
+    var isPublishing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     fun validate(): String? = when {
         origin.isBlank() || destination.isBlank() -> "Indica origen y destino."
@@ -75,36 +78,45 @@ fun LoadsScreen(
             return
         }
         error = null
+        isPublishing = true
         val kg = cargoKg.toIntOrNull() ?: 0
-        TripRepository.publish(
-            AvailableTrip(
-                id = TripRepository.nextId(),
-                departure = time,
-                driver = driverName,
-                rating = 0.0,
-                verifiedTrips = 0,
-                vehicle = vehicleName.trim(),
-                vehicleDetail = if (hasCargo) "Carga y flete" else "Solo pasajeros",
-                plate = plate.trim().uppercase(),
-                cargoFreeKg = if (hasCargo) kg else 0,
-                cargoTotalKg = if (hasCargo) maxOf(kg, 1) else 1,
-                cargoNote = "Espacio de carga",
-                seatsFree = if (hasSeats) seats else 0,
-                seatsTotal = if (hasSeats) seats else 0,
-                seatsNote = "Cupo a bordo",
-                cargoPrice = if (hasCargo) formatCop(cargoPrice) else "-",
-                seatPrice = if (hasSeats) formatCop(seatPrice) else "-",
-                distance = "—",
-                duration = "—",
-                road = "${origin.trim()} → ${destination.trim()}",
-                origin = origin.trim(),
-                destination = destination.trim(),
-                date = date,
-                hasCargo = hasCargo,
-                hasSeats = hasSeats
-            )
+        val newTrip = AvailableTrip(
+            id = "", // el código lo asigna TripRepository al guardar
+            departure = time,
+            driver = driverName,
+            rating = 0.0,
+            verifiedTrips = 0,
+            vehicle = vehicleName.trim(),
+            vehicleDetail = if (hasCargo) "Carga y flete" else "Solo pasajeros",
+            plate = plate.trim().uppercase(),
+            cargoFreeKg = if (hasCargo) kg else 0,
+            cargoTotalKg = if (hasCargo) maxOf(kg, 1) else 1,
+            cargoNote = "Espacio de carga",
+            seatsFree = if (hasSeats) seats else 0,
+            seatsTotal = if (hasSeats) seats else 0,
+            seatsNote = "Cupo a bordo",
+            cargoPrice = if (hasCargo) formatCop(cargoPrice) else "-",
+            seatPrice = if (hasSeats) formatCop(seatPrice) else "-",
+            distance = "—",
+            duration = "—",
+            road = "${origin.trim()} → ${destination.trim()}",
+            origin = origin.trim(),
+            destination = destination.trim(),
+            date = date,
+            hasCargo = hasCargo,
+            hasSeats = hasSeats
         )
-        onPublished()
+        scope.launch {
+            TripRepository.publish(newTrip)
+                .onSuccess {
+                    isPublishing = false
+                    onPublished()
+                }
+                .onFailure { e ->
+                    isPublishing = false
+                    error = TripRepository.friendlyError(e)
+                }
+        }
     }
 
     Scaffold(
@@ -204,8 +216,9 @@ fun LoadsScreen(
             }
 
             PrimaryButton(
-                text = "Publicar viaje",
+                text = if (isPublishing) "Publicando..." else "Publicar viaje",
                 onClick = { publish() },
+                enabled = !isPublishing,
                 leadingIcon = Icons.Default.Publish,
                 trailingIcon = null,
                 containerColor = SecondaryContainer
