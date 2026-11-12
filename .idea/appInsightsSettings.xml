@@ -9,9 +9,9 @@
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="me.mauromax.rutaconfiable" />
-                  <option name="mobileSdkAppId" value="1:123456789012:android:abcdef1234567890" />
-                  <option name="projectId" value="ruta-confiable-mock" />
-                  <option name="projectNumber" value="123456789012" />
+                  <option name="mobileSdkAppId" value="1:467801237337:android:d175464da2ea2a7e754e48" />
+                  <option name="projectId" value="rutaconfiable-7aa63" />
+                  <option name="projectNumber" value="467801237337" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

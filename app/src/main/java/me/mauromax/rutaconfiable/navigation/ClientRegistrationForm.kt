@@ -22,11 +22,13 @@ import me.mauromax.rutaconfiable.ui.theme.*
 fun ClientRegistrationFormContent(
     state: RegistrationUiState,
     viewModel: RegistrationViewModel,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
+    onAddPaymentClick: () -> Unit
 ) {
     var docDropdownExpanded by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -41,14 +43,14 @@ fun ClientRegistrationFormContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Person,
+                        Icons.Default.Person,
                         contentDescription = null,
                         tint = Secondary,
                         modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "REGISTRO DE CLIENTE",
+                        "REGISTRO DE CLIENTE",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = PrimaryLight
@@ -61,7 +63,7 @@ fun ClientRegistrationFormContent(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = "Paso 1 de 2",
+                    "Paso 1 de 2",
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -71,7 +73,7 @@ fun ClientRegistrationFormContent(
         }
 
         Text(
-            text = "Crea tu cuenta de Cliente",
+            "Crea tu cuenta de Cliente",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = PrimaryLight,
@@ -79,7 +81,7 @@ fun ClientRegistrationFormContent(
         )
 
         Text(
-            text = "Reserva cupos cómodos en viajes intermunicipales o despacha encomiendas con monitoreo satelital en tiempo real.",
+            "Reserva cupos cómodos en viajes intermunicipales o despacha encomiendas con monitoreo satelital en tiempo real.",
             fontSize = 13.sp,
             color = Color(0xFF44474D),
             lineHeight = 18.sp
@@ -95,7 +97,7 @@ fun ClientRegistrationFormContent(
                 onValueChange = { viewModel.updateClientFullName(it) },
                 label = { Text("Nombre completo") },
                 placeholder = { Text("Ej: Valentina Gómez Salazar") },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Person, null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 colors = customTextFieldColors()
@@ -106,7 +108,7 @@ fun ClientRegistrationFormContent(
                 onValueChange = { viewModel.updateClientEmail(it) },
                 label = { Text("Correo electrónico") },
                 placeholder = { Text("ejemplo@correo.com") },
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Email, null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 colors = customTextFieldColors()
@@ -114,12 +116,13 @@ fun ClientRegistrationFormContent(
 
             Column {
                 Text(
-                    text = "Número de WhatsApp / Celular",
+                    "Número de WhatsApp / Celular",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = PrimaryLight,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
+
                 PhoneWithCountrySelectorField(
                     phoneValue = state.clientPhone,
                     onPhoneChange = { viewModel.updateClientPhone(it) },
@@ -134,8 +137,9 @@ fun ClientRegistrationFormContent(
                     label = "Contraseña segura",
                     placeholder = "Mínimo 8 caracteres"
                 )
+
                 Text(
-                    text = "Incluye mayúsculas, números o caracteres especiales.",
+                    "Incluye mayúsculas, números o caracteres especiales.",
                     fontSize = 11.sp,
                     color = Color(0xFF74777E),
                     modifier = Modifier.padding(top = 4.dp, start = 4.dp)
@@ -149,7 +153,7 @@ fun ClientRegistrationFormContent(
             subtitle = "Requerido para control de abordaje en terminal"
         ) {
             Text(
-                text = "Documento de Identidad",
+                "Documento de Identidad",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = PrimaryLight
@@ -173,9 +177,14 @@ fun ClientRegistrationFormContent(
                             modifier = Modifier.padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(state.clientDocumentType, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = PrimaryLight)
+                            Text(
+                                state.clientDocumentType,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryLight
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Icon(Icons.Default.ArrowDropDown, null, tint = PrimaryLight)
                         }
                     }
 
@@ -183,26 +192,25 @@ fun ClientRegistrationFormContent(
                         expanded = docDropdownExpanded,
                         onDismissRequest = { docDropdownExpanded = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("C.C.") },
-                            onClick = { viewModel.updateClientDocumentType("C.C."); docDropdownExpanded = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("C.E.") },
-                            onClick = { viewModel.updateClientDocumentType("C.E."); docDropdownExpanded = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Pasaporte") },
-                            onClick = { viewModel.updateClientDocumentType("Pasaporte"); docDropdownExpanded = false }
-                        )
+                        listOf("C.C.", "C.E.", "Pasaporte").forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type) },
+                                onClick = {
+                                    viewModel.updateClientDocumentType(type)
+                                    docDropdownExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
 
                 OutlinedTextField(
                     value = state.clientDocumentNumber,
-                    onValueChange = { viewModel.updateClientDocumentNumber(it) },
+                    onValueChange = {
+                        viewModel.updateClientDocumentNumber(it)
+                    },
                     placeholder = { Text("1.020.485.934") },
-                    leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.Default.Pin, null) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = customTextFieldColors()
@@ -210,18 +218,36 @@ fun ClientRegistrationFormContent(
             }
         }
 
+        // MÉTODOS DE PAGO
+        CardSectionContainer(
+            title = "3. Métodos de Pago",
+            icon = Icons.Default.Payment,
+            subtitle = "Administra los medios de pago de tus reservas"
+        ) {
+            SecondaryOutlinedButton(
+                text = "Agregar método de pago",
+                onClick = onAddPaymentClick,
+                leadingIcon = Icons.Default.Add
+            )
+        }
+
+        // TÉRMINOS Y NOTIFICACIONES
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
             Row(
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Checkbox(
                     checked = state.clientTermsAccepted,
-                    onCheckedChange = { viewModel.updateClientTermsAccepted(it) },
+                    onCheckedChange = {
+                        viewModel.updateClientTermsAccepted(it)
+                    },
                     colors = CheckboxDefaults.colors(checkedColor = Secondary)
                 )
+
                 Text(
-                    text = "Acepto los Términos y Condiciones del servicio de transporte y la Política de Privacidad de datos de Ruta Confiable.",
+                    "Acepto los Términos y Condiciones del servicio de transporte y la Política de Privacidad de datos de Ruta Confiable.",
                     fontSize = 12.sp,
                     color = Color(0xFF44474D),
                     lineHeight = 16.sp,
@@ -235,11 +261,14 @@ fun ClientRegistrationFormContent(
             ) {
                 Checkbox(
                     checked = state.clientWhatsappAlertsAccepted,
-                    onCheckedChange = { viewModel.updateClientWhatsappAlerts(it) },
+                    onCheckedChange = {
+                        viewModel.updateClientWhatsappAlerts(it)
+                    },
                     colors = CheckboxDefaults.colors(checkedColor = Secondary)
                 )
+
                 Text(
-                    text = "Deseo recibir alertas de WhatsApp con el estado del bus y ubicación en tiempo real de mis encomiendas.",
+                    "Deseo recibir alertas de WhatsApp con el estado del bus y ubicación en tiempo real de mis encomiendas.",
                     fontSize = 12.sp,
                     color = Color(0xFF44474D),
                     lineHeight = 16.sp,
@@ -250,7 +279,8 @@ fun ClientRegistrationFormContent(
 
         PrimaryButton(
             text = "Crear cuenta de cliente",
-            onClick = onSubmit
+            onClick = onSubmit,
+            enabled = state.clientTermsAccepted
         )
     }
 }

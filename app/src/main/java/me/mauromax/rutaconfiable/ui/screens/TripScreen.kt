@@ -1,5 +1,18 @@
 package me.mauromax.rutaconfiable.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.Priority
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -83,6 +96,62 @@ fun TripScreen(
     var withPassengers by remember { mutableStateOf(true) }
     var selectedId by remember { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
+    var isGettingLocation by remember { mutableStateOf(false) }
+    var liveLocation by remember { mutableStateOf<String?>(null) }
+    var isTrackingLive by remember { mutableStateOf(false) }
+
+    DisposableEffect(isTrackingLive) {
+        if (!isTrackingLive) return@DisposableEffect onDispose {}
+
+        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasFine && !hasCoarse) {
+            isTrackingLive = false
+            return@DisposableEffect onDispose {}
+        }
+
+        val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000L)
+            .setMinUpdateIntervalMillis(5000L)
+            .build()
+
+        val callback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult) {
+                result.lastLocation?.let { location ->
+                    liveLocation = "Lat: %.4f, Lng: %.4f".format(location.latitude, location.longitude)
+                }
+            }
+        }
+
+        try {
+            fusedClient.requestLocationUpdates(request, callback, android.os.Looper.getMainLooper())
+        } catch (e: SecurityException) {
+            // Ignored
+        }
+
+        onDispose {
+            try {
+                fusedClient.removeLocationUpdates(callback)
+            } catch (e: Exception) {}
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            isGettingLocation = true
+            fetchCurrentLocation(context) { locStr ->
+                origin = locStr
+                isGettingLocation = false
+            }
+        }
+    }
+
     val results = trips.filter { t ->
         val matchesOrigin = origin.isBlank() || t.origin.contains(origin.trim(), ignoreCase = true)
         val matchesDestination = destination.isBlank() || t.destination.contains(destination.trim(), ignoreCase = true)
@@ -115,11 +184,116 @@ fun TripScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Live GPS Tracking Banner
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = SurfaceSoft,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, OutlineVariant)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = Icons.Default.MyLocation,
+                            contentDescription = null,
+                            tint = if (isTrackingLive) StatusAvailable else Outline,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = if (isTrackingLive) "GPS en Tiempo Real Activo" else "Monitoreo GPS en Vivo",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryLight
+                            )
+                            Text(
+                                text = liveLocation ?: (if (isTrackingLive) "Obteniendo posición..." else "Pulsa para iniciar seguimiento"),
+                                fontSize = 11.sp,
+                                color = OnSurfaceVariant
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = isTrackingLive,
+                        onCheckedChange = { checked ->
+                            val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+                            if (checked && !hasFine && !hasCoarse) {
+                                permissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            } else {
+                                isTrackingLive = checked
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = CardBackground,
+                            checkedTrackColor = StatusAvailable,
+                            uncheckedThumbColor = CardBackground,
+                            uncheckedTrackColor = Outline
+                        )
+                    )
+                }
+            }
+
             // Búsqueda
-            AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
-                AppOutlinedTextField(origin, { origin = it }, label = "En origen",
+            TripBox {
+                AppOutlinedTextField(
+                    value = origin,
+                    onValueChange = { origin = it },
+                    label = "En origen",
                     leadingIcon = Icons.Default.LocationOn,
-                    trailingIcon = { Icon(Icons.Default.GpsFixed, null, tint = Outline) })
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                val hasFine = ContextCompat.checkSelfPermission(
+                                    context, Manifest.permission.ACCESS_FINE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
+                                val hasCoarse = ContextCompat.checkSelfPermission(
+                                    context, Manifest.permission.ACCESS_COARSE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                if (hasFine || hasCoarse) {
+                                    isGettingLocation = true
+                                    fetchCurrentLocation(context) { locStr ->
+                                        origin = locStr
+                                        isGettingLocation = false
+                                    }
+                                } else {
+                                    permissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            }
+                        ) {
+                            if (isGettingLocation) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Secondary
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.GpsFixed,
+                                    contentDescription = "Obtener ubicación GPS",
+                                    tint = Secondary
+                                )
+                            }
+                        }
+                    }
+                )
                 AppOutlinedTextField(destination, { destination = it }, label = "Para (destino)",
                     leadingIcon = Icons.Default.Place,
                     trailingIcon = { Icon(Icons.Default.SwapVert, null, tint = Outline) })
@@ -441,6 +615,57 @@ private fun ToggleBox(
             Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
             AppSwitch(checked, onChange)
         }
+    }
+}
+
+@Composable
+private fun TripBox(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = CardBackground, shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, OutlineVariant), shadowElevation = 1.dp
+    ) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content) }
+}
+
+private fun fetchCurrentLocation(context: Context, onLocationResult: (String) -> Unit) {
+    val hasFine = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+    val hasCoarse = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.ACCESS_COARSE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+
+    if (!hasFine && !hasCoarse) {
+        onLocationResult("Permiso de ubicación no concedido")
+        return
+    }
+
+    try {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                val latLngStr = "Lat: %.4f, Lng: %.4f".format(location.latitude, location.longitude)
+                try {
+                    val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                    if (!addresses.isNullOrEmpty()) {
+                        val address = addresses[0]
+                        val cityName = address.locality ?: address.subAdminArea ?: address.adminArea ?: latLngStr
+                        onLocationResult(cityName)
+                    } else {
+                        onLocationResult(latLngStr)
+                    }
+                } catch (e: Exception) {
+                    onLocationResult(latLngStr)
+                }
+            } else {
+                onLocationResult("Ubicación actual no disponible")
+            }
+        }.addOnFailureListener {
+            onLocationResult("Error al obtener GPS")
+        }
+    } catch (e: Exception) {
+        onLocationResult("GPS no disponible")
     }
 }
 

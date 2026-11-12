@@ -26,7 +26,11 @@ import androidx.compose.ui.unit.sp
 import me.mauromax.rutaconfiable.ui.components.*
 import me.mauromax.rutaconfiable.ui.theme.*
 
-enum class RegistrationRole { DRIVER, CLIENT }
+enum class RegistrationRole {
+    DRIVER, CLIENT
+}
+
+private val Body = Color(0xFF44474D)
 
 @Composable
 fun RegistrationScreen(

@@ -93,11 +93,13 @@ fun WelcomeScreen(
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFCBD5E1))
+                    .background(PrimaryDark)
             ) {
                 Image(
-                    painterResource(R.drawable.ic_launcher_background), null,
-                    Modifier.fillMaxSize(), contentScale = ContentScale.Crop
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
                 Box(Modifier.fillMaxSize().background(Color(0x22000000))) // sombra suave
 
