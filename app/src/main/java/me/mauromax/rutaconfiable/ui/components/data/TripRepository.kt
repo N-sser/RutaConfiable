@@ -111,6 +111,52 @@ object TripRepository {
             .sortedByDescending { it.createdAt }
     }
 
+    /**
+    +     * Reserva cupos ([kind] = "seat") o kilos de flete ([kind] = "cargo") en un viaje.
+    +     * En una sola transacción descuenta lo reservado del viaje y guarda la reserva
+    +     * en la colección "bookings". Así dos clientes no pueden reservar el mismo cupo.
+    +     */
+    suspend fun book(trip: AvailableTrip, kind: String, quantity: Int): Result<Unit> = runCatching {
+        val uid = auth.currentUser?.uid
+            ?: throw TripException("Inicia sesión para reservar.")
+        if (quantity <= 0) throw TripException("Indica una cantidad válida.")
+        if (trip.driverUid == uid) throw TripException("No puedes reservar tu propio viaje.")
+
+        val clientName = runCatching {
+                db.collection("users").document(uid).get().await().getString("name")
+            }.getOrNull().orEmpty()
+
+        val field = if (kind == "seat") "seatsFree" else "cargoFreeKg"
+        val tripRef = db.collection(COLLECTION).document(trip.id)
+        val bookingRef = db.collection("bookings").document()
+
+        // Devuelve (se pudo reservar, cuántos quedaban libres).
+        val (booked, free) = db.runTransaction<Pair<Boolean, Long>> { tx ->
+                val snap = tx.get(tripRef)
+                val available = snap.getLong(field) ?: 0L
+                if (!snap.exists() || quantity > available) {
+                        Pair(false, available)
+                    } else {
+                        tx.update(tripRef, field, available - quantity)
+                        tx.set(
+                                bookingRef, mapOf(
+                                        "tripId" to trip.id,
+                                        "driverUid" to trip.driverUid,
+                                        "clientUid" to uid,
+                                        "clientName" to clientName,
+                                        "kind" to kind,
+                                        "quantity" to quantity,
+                                        "status" to "pending",
+                                        "createdAt" to System.currentTimeMillis()
+                                            )
+                                    )
+                        Pair(true, available - quantity)
+                    }
+            }.await()
+
+        if (!booked) throw TripException("Ya no hay disponibilidad suficiente (quedan $free).")
+    }
+
     fun friendlyError(e: Throwable): String = when {
         e is TripException -> e.message ?: "No se pudo completar. Intenta de nuevo."
         e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.UNAVAILABLE ->

@@ -67,7 +67,7 @@ fun ProfileScreen(
         bottomBar = {
             AppBottomBar(selectedIndex = 3) {
                 when (it) {
-                    1 -> onNavigateToLoads()
+                    1 -> if (isDriver) onNavigateToLoads()
                     2 -> onNavigateToTrips()
                 }
             }
@@ -87,13 +87,17 @@ fun ProfileScreen(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Bienvenido", fontSize = 12.sp, color = OnSurfaceVariant)
-                    Text(userName, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                        color = PrimaryLight, fontFamily = FontFamily.Serif)
+                    Text(
+                        userName, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                        color = PrimaryLight, fontFamily = FontFamily.Serif
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Star, null, Modifier.size(14.dp), tint = Secondary)
                         Spacer(Modifier.width(2.dp))
-                        Text("%.1f · %d calificaciones".format(stats.rating, stats.ratingCount),
-                            fontSize = 11.sp, color = OnSurfaceVariant)
+                        Text(
+                            "%.1f · %d calificaciones".format(stats.rating, stats.ratingCount),
+                            fontSize = 11.sp, color = OnSurfaceVariant
+                        )
                     }
                 }
                 StatusTag(
@@ -117,18 +121,22 @@ fun ProfileScreen(
                 nextTrip?.let { StatusTag(it.leavesIn, StatusPendingBg, StatusPending) }
             }
             if (nextTrip != null) NextTripCard(nextTrip)
-            else EmptyState(Icons.Default.LocalShipping,
-                if (isDriver) "Aún no tienes viajes asignados." else "Aún no tienes reservas ni envíos.")
+            else EmptyState(
+                Icons.Default.LocalShipping,
+                if (isDriver) "Aún no tienes viajes asignados." else "Aún no tienes reservas ni envíos."
+            )
 
             // Acciones rápidas
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickAction(
-                    icon = Icons.Default.Add,
-                    title = "Publicar nuevo viaje",
-                    subtitle = "Ofrecer flete o ruta",
-                    modifier = Modifier.weight(1f),
-                    onClick = onNavigateToLoads
-                )
+                if (isDriver) {
+                    QuickAction(
+                        icon = Icons.Default.Add,
+                        title = "Publicar nuevo viaje",
+                        subtitle = "Ofrecer flete o ruta",
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToLoads
+                    )
+                }
                 QuickAction(
                     icon = Icons.Default.Search,
                     title = "Buscar trayectos",
@@ -141,12 +149,16 @@ fun ProfileScreen(
             // Viajes recientes
             SectionHeader("Viajes Programados Recientes") {
                 if (trips.isNotEmpty()) {
-                    Text("Ver todos (${trips.size})", fontSize = 12.sp,
+                    Text(
+                        "Ver todos (${trips.size})", fontSize = 12.sp,
                         fontWeight = FontWeight.Bold, color = Secondary,
                         modifier = Modifier.clickable { onNavigateToTrips() })
                 }
             }
-            if (trips.isEmpty()) EmptyState(Icons.Default.Event, "Aún no tienes viajes programados.")
+            if (trips.isEmpty()) EmptyState(
+                Icons.Default.Event,
+                "Aún no tienes viajes programados."
+            )
             else trips.forEach { TripRow(it) }
         }
     }
@@ -166,8 +178,10 @@ private fun EmptyState(icon: ImageVector, text: String) {
 @Composable
 private fun SectionHeader(title: String, trailing: @Composable () -> Unit) {
     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-        Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold,
-            color = PrimaryLight, fontFamily = FontFamily.Serif)
+        Text(
+            title, fontSize = 17.sp, fontWeight = FontWeight.Bold,
+            color = PrimaryLight, fontFamily = FontFamily.Serif
+        )
         trailing()
     }
 }
@@ -176,8 +190,10 @@ private fun SectionHeader(title: String, trailing: @Composable () -> Unit) {
 private fun StatCard(label: String, value: Int, modifier: Modifier = Modifier) {
     AppCard(modifier) {
         Text(label, fontSize = 11.sp, color = OnSurfaceVariant)
-        Text(value.toString(), fontSize = 26.sp, fontWeight = FontWeight.Bold,
-            color = PrimaryLight, fontFamily = FontFamily.Serif)
+        Text(
+            value.toString(), fontSize = 26.sp, fontWeight = FontWeight.Bold,
+            color = PrimaryLight, fontFamily = FontFamily.Serif
+        )
     }
 }
 
@@ -191,17 +207,30 @@ private fun NextTripCard(t: NextTrip) {
     ) {
         Column {
             Row(
-                Modifier.fillMaxWidth().background(PrimaryLight).padding(horizontal = 14.dp, vertical = 10.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .background(PrimaryLight)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 Arrangement.SpaceBetween, Alignment.CenterVertically
             ) {
-                Text("ID: ${t.id}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "ID: ${t.id}",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 StatusTag("Confirmado · Seguro", SecondaryContainer, OnSecondaryContainer)
             }
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                     Column {
                         Text("Salida", fontSize = 11.sp, color = OnSurfaceVariant)
-                        Text(t.from, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                        Text(
+                            t.from,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryLight
+                        )
                         Text(t.departure, fontSize = 11.sp, color = OnSurfaceVariant)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -211,19 +240,32 @@ private fun NextTripCard(t: NextTrip) {
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text("Llegada", fontSize = 11.sp, color = OnSurfaceVariant)
-                        Text(t.to, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                        Text(
+                            t.to,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryLight
+                        )
                         Text(t.arrival, fontSize = 11.sp, color = OnSurfaceVariant)
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("Inspección de carga", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text("${(t.inspection * 100).toInt()}% listo", fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold, color = Secondary)
+                        Text(
+                            "Inspección de carga",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "${(t.inspection * 100).toInt()}% listo", fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold, color = Secondary
+                        )
                     }
                     LinearProgressIndicator(
                         progress = { t.inspection },
-                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp),
                         color = SecondaryContainer,
                         trackColor = SurfaceVariant
                     )
@@ -258,10 +300,23 @@ private fun QuickAction(
     onClick: () -> Unit = {}
 ) {
     AppCard(modifier.clickable { onClick() }) {
-        Icon(icon, null, tint = Secondary)
+        Icon(icon, null, tint = Secondary, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(6.dp))
-        Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
-        Text(subtitle, fontSize = 11.sp, color = OnSurfaceVariant)
+        Text(
+            title,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = PrimaryLight
+        )
+        Text(
+            subtitle,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            fontSize = 11.sp,
+            color = OnSurfaceVariant
+        )
     }
 }
 
