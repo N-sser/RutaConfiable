@@ -1,28 +1,19 @@
 package me.mauromax.rutaconfiable.navigation
 
 import android.net.Uri
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import kotlinx.coroutines.withTimeoutOrNull
 import me.mauromax.rutaconfiable.ui.data.AuthRepository
 import me.mauromax.rutaconfiable.ui.data.ProfileData
 import me.mauromax.rutaconfiable.ui.data.ProfileRepository
 import me.mauromax.rutaconfiable.ui.screens.*
-import me.mauromax.rutaconfiable.ui.theme.Background
-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
 
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
@@ -77,41 +68,9 @@ private fun NavHostController.goTab(route: String) {
 fun AppNavGraph(
     navController: NavHostController = rememberNavController()
 ) {
-    // Pantalla inicial según la sesión guardada por Firebase (null = todavía resolviendo).
-    // Con sesión: cuenta verificada -> perfil; cuenta sin verificar -> pantalla de verificación.
-    val resolvedStart by produceState<String?>(initialValue = null) {
-        value = if (!AuthRepository.isLoggedIn) {
-            Screen.Welcome.route
-        } else {
-            val status = withTimeoutOrNull(8_000) { AuthRepository.getAccountStatus() }
-            val role = when (status?.role) {
-                "client" -> "client"
-                "driver" -> "driver"
-                else -> null
-            }
-            when {
-                // Sin rol o sin conexión: se pide iniciar sesión, sin cerrar la sesión guardada.
-                status == null || role == null -> Screen.Welcome.route
-                status.isVerified -> Screen.Profile.createRoute(role)
-                else -> Screen.VerificationPending.createRoute(role)
-            }
-        }
-    }
-
-    val startRoute = resolvedStart
-    if (startRoute == null) {
-        Box(
-            Modifier.fillMaxSize().background(Background),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = PrimaryLight)
-        }
-        return
-    }
-
     NavHost(
         navController = navController,
-        startDestination = startRoute
+        startDestination = Screen.Welcome.route
     ) {
 
         composable(route = Screen.Welcome.route) {
