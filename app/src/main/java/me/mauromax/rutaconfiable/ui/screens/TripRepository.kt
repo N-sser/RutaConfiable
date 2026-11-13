@@ -1,4 +1,4 @@
-package me.mauromax.rutaconfiable.ui.components.data
+package me.mauromax.rutaconfiable.ui.screens
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -11,20 +11,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
-import me.mauromax.rutaconfiable.ui.components.data.TripRepository.trips
-import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
 import java.security.SecureRandom
-
-/** Reserva hecha por un cliente en un viaje. [kind] es "seat" (cupos) o "cargo" (kg). */
-data class Booking(
-    val id: String,
-    val route: String,
-    val date: String,
-    val clientName: String,
-    val kind: String,
-    val quantity: Int,
-    val createdAt: Long
-)
 
 /** Error con un mensaje ya listo para mostrar al usuario. */
 class TripException(message: String) : Exception(message)
@@ -89,9 +76,23 @@ object TripRepository {
         val uid = auth.currentUser?.uid
             ?: throw TripException("Inicia sesión para publicar un viaje.")
 
-        val driverName = runCatching {
-            db.collection("users").document(uid).get().await().getString("name")
-        }.getOrNull()?.takeIf { it.isNotBlank() } ?: trip.driver
+        // Solo publican conductores con la cuenta aprobada por un administrador.
+        // (Firestore lo exige también en firestore.rules; esto da un mensaje claro.)
+        val userDoc = db.collection("users").document(uid).get().await()
+        if (userDoc.getString("role") != "driver") {
+            throw TripException("Solo los conductores pueden publicar viajes.")
+        }
+        if (userDoc.getBoolean("verified") != true) {
+            throw TripException(
+                "Tu cuenta aún no está verificada. Podrás publicar viajes cuando sea aprobada."
+            )
+        }
+        val driverName = userDoc.getString("name")?.takeIf { it.isNotBlank() } ?: trip.driver
+        // Teléfono con indicativo, solo dígitos (ej. 573104567890), para Llamar y WhatsApp.
+        val phoneDigits = userDoc.getString("phone").orEmpty().filter { it.isDigit() }
+        val countryDigits = userDoc.getString("phoneCountryCode").orEmpty().filter { it.isDigit() }
+            .ifEmpty { "57" }
+        val driverPhone = if (phoneDigits.isEmpty()) "" else countryDigits + phoneDigits
 
         repeat(5) {
             val code = newCode()
@@ -101,11 +102,13 @@ object TripRepository {
                 if (tx.get(ref).exists()) {
                     false
                 } else {
-                    tx.set(ref, trip.toMap(uid, driverName))
+                    tx.set(ref, trip.toMap(uid, driverName, driverVerified = true, driverPhone = driverPhone))
                     true
                 }
             }.await()
-            if (created) return@runCatching trip.copy(id = code, driver = driverName)
+            if (created) return@runCatching trip.copy(
+                id = code, driver = driverName, driverVerified = true, driverPhone = driverPhone
+            )
         }
         throw TripException("No se pudo generar el código del viaje. Intenta de nuevo.")
     }
@@ -123,88 +126,12 @@ object TripRepository {
             .sortedByDescending { it.createdAt }
     }
 
-    /**
-     * Reserva cupos ([kind] = "seat") o kilos de flete ([kind] = "cargo") en un viaje.
-     * En una sola transacción descuenta lo reservado del viaje y guarda la reserva
-     * en la colección "bookings". Así dos clientes no pueden reservar el mismo cupo.
-     */
-    suspend fun book(trip: AvailableTrip, kind: String, quantity: Int): Result<Unit> = runCatching {
-        val uid = auth.currentUser?.uid
-            ?: throw TripException("Inicia sesión para reservar.")
-        if (quantity <= 0) throw TripException("Indica una cantidad válida.")
-        if (trip.driverUid == uid) throw TripException("No puedes reservar tu propio viaje.")
-
-        val clientName = runCatching {
-            db.collection("users").document(uid).get().await().getString("name")
-        }.getOrNull().orEmpty()
-
-        val field = if (kind == "seat") "seatsFree" else "cargoFreeKg"
-        val tripRef = db.collection(COLLECTION).document(trip.id)
-        val bookingRef = db.collection("bookings").document()
-
-        // Devuelve (se pudo reservar, cuántos quedaban libres).
-        val (booked, free) = db.runTransaction<Pair<Boolean, Long>> { tx ->
-            val snap = tx.get(tripRef)
-            val available = snap.getLong(field) ?: 0L
-            if (!snap.exists() || quantity > available) {
-                Pair(false, available)
-            } else {
-                tx.update(tripRef, field, available - quantity)
-                tx.set(
-                    bookingRef, mapOf(
-                        "tripId" to trip.id,
-                        "route" to trip.road,
-                        "date" to trip.date,
-                        "driverUid" to trip.driverUid,
-                        "clientUid" to uid,
-                        "clientName" to clientName,
-                        "kind" to kind,
-                        "quantity" to quantity,
-                        "status" to "pending",
-                        "createdAt" to System.currentTimeMillis()
-                    )
-                )
-                Pair(true, available - quantity)
-            }
-        }.await()
-
-        if (!booked) throw TripException("Ya no hay disponibilidad suficiente (quedan $free).")
-    }
-
-    /**
-     * Reservas del usuario con sesión: las que recibió (conductor) o las que hizo (cliente),
-     * de la más reciente a la más antigua.
-     */
-    suspend fun loadMyBookings(asDriver: Boolean): Result<List<Booking>> = runCatching {
-        val uid = auth.currentUser?.uid
-            ?: throw TripException("Inicia sesión para ver tus reservas.")
-        db.collection("bookings")
-            .whereEqualTo(if (asDriver) "driverUid" else "clientUid", uid)
-            .get()
-            .await()
-            .documents
-            .map {
-                Booking(
-                    id = it.id,
-                    route = it.getString("route") ?: it.getString("tripId").orEmpty(),
-                    date = it.getString("date").orEmpty(),
-                    clientName = it.getString("clientName").orEmpty(),
-                    kind = it.getString("kind").orEmpty(),
-                    quantity = it.getLong("quantity")?.toInt() ?: 0,
-                    createdAt = it.getLong("createdAt") ?: 0L
-                )
-            }
-            .sortedByDescending { it.createdAt }
-    }
-
     fun friendlyError(e: Throwable): String = when {
         e is TripException -> e.message ?: "No se pudo completar. Intenta de nuevo."
         e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.UNAVAILABLE ->
             "Sin conexión a internet."
-
         e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ->
             "No tienes permiso para esta acción."
-
         else -> "No se pudo completar. Intenta de nuevo."
     }
 
@@ -212,34 +139,40 @@ object TripRepository {
         CharArray(CODE_LENGTH) { CODE_ALPHABET[random.nextInt(CODE_ALPHABET.length)] }
     )
 
-    private fun AvailableTrip.toMap(driverUid: String, driverName: String): Map<String, Any> =
-        mapOf(
-            "driverUid" to driverUid,
-            "driver" to driverName,
-            "departure" to departure,
-            "rating" to rating,
-            "verifiedTrips" to verifiedTrips,
-            "vehicle" to vehicle,
-            "vehicleDetail" to vehicleDetail,
-            "plate" to plate,
-            "cargoFreeKg" to cargoFreeKg,
-            "cargoTotalKg" to cargoTotalKg,
-            "cargoNote" to cargoNote,
-            "seatsFree" to seatsFree,
-            "seatsTotal" to seatsTotal,
-            "seatsNote" to seatsNote,
-            "cargoPrice" to cargoPrice,
-            "seatPrice" to seatPrice,
-            "distance" to distance,
-            "duration" to duration,
-            "road" to road,
-            "origin" to origin,
-            "destination" to destination,
-            "date" to date,
-            "hasCargo" to hasCargo,
-            "hasSeats" to hasSeats,
-            "createdAt" to System.currentTimeMillis()
-        )
+    private fun AvailableTrip.toMap(
+        driverUid: String,
+        driverName: String,
+        driverVerified: Boolean,
+        driverPhone: String
+    ): Map<String, Any> = mapOf(
+        "driverUid" to driverUid,
+        "driverPhone" to driverPhone,
+        "driverVerified" to driverVerified,
+        "driver" to driverName,
+        "departure" to departure,
+        "rating" to rating,
+        "verifiedTrips" to verifiedTrips,
+        "vehicle" to vehicle,
+        "vehicleDetail" to vehicleDetail,
+        "plate" to plate,
+        "cargoFreeKg" to cargoFreeKg,
+        "cargoTotalKg" to cargoTotalKg,
+        "cargoNote" to cargoNote,
+        "seatsFree" to seatsFree,
+        "seatsTotal" to seatsTotal,
+        "seatsNote" to seatsNote,
+        "cargoPrice" to cargoPrice,
+        "seatPrice" to seatPrice,
+        "distance" to distance,
+        "duration" to duration,
+        "road" to road,
+        "origin" to origin,
+        "destination" to destination,
+        "date" to date,
+        "hasCargo" to hasCargo,
+        "hasSeats" to hasSeats,
+        "createdAt" to System.currentTimeMillis()
+    )
 
     private fun DocumentSnapshot.toTrip(): AvailableTrip? = runCatching {
         AvailableTrip(
@@ -268,7 +201,9 @@ object TripRepository {
             hasCargo = getBoolean("hasCargo") ?: true,
             hasSeats = getBoolean("hasSeats") ?: true,
             driverUid = getString("driverUid").orEmpty(),
-            createdAt = getLong("createdAt") ?: 0L
+            createdAt = getLong("createdAt") ?: 0L,
+            driverVerified = getBoolean("driverVerified") ?: false,
+            driverPhone = getString("driverPhone").orEmpty()
         )
     }.getOrNull()
 }

@@ -2,78 +2,37 @@ package me.mauromax.rutaconfiable.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.location.Location
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.Priority
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.EventSeat
-import androidx.compose.material.icons.filled.GpsFixed
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Route
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.VerifiedUser
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,52 +41,23 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.text.input.KeyboardType
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import kotlinx.coroutines.launch
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.AppCard
-import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
 import me.mauromax.rutaconfiable.ui.components.AppSwitch
+import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
 import me.mauromax.rutaconfiable.ui.components.StatusTag
-import me.mauromax.rutaconfiable.ui.components.data.TripRepository
-import me.mauromax.rutaconfiable.ui.theme.Background
-import me.mauromax.rutaconfiable.ui.theme.CardBackground
-import me.mauromax.rutaconfiable.ui.theme.MapBackground
-import me.mauromax.rutaconfiable.ui.theme.MapRoadLine
-import me.mauromax.rutaconfiable.ui.theme.OnPlateYellow
-import me.mauromax.rutaconfiable.ui.theme.OnPrimary
-import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
-import me.mauromax.rutaconfiable.ui.theme.Outline
-import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
-import me.mauromax.rutaconfiable.ui.theme.PlateYellow
-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
-import me.mauromax.rutaconfiable.ui.theme.RatingStar
-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
-import me.mauromax.rutaconfiable.ui.theme.Secondary
-import me.mauromax.rutaconfiable.ui.theme.SecondaryContainer
-import me.mauromax.rutaconfiable.ui.theme.SecondarySoft
-import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
-import me.mauromax.rutaconfiable.ui.theme.StatusAvailableBg
-import me.mauromax.rutaconfiable.ui.theme.StatusBooked
-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
-import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
-import me.mauromax.rutaconfiable.ui.theme.SurfaceVariant
+import me.mauromax.rutaconfiable.ui.data.BookingRepository
+import me.mauromax.rutaconfiable.ui.theme.*
 
 data class AvailableTrip(
     val id: String,
@@ -155,7 +85,11 @@ data class AvailableTrip(
     val hasCargo: Boolean = true,
     val hasSeats: Boolean = true,
     val driverUid: String = "",
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    /** El conductor tenía la cuenta aprobada por un administrador al publicar el viaje. */
+    val driverVerified: Boolean = false,
+    /** Teléfono del conductor con indicativo, solo dígitos (vacío en viajes antiguos). */
+    val driverPhone: String = ""
 )
 
 @Composable
@@ -190,14 +124,8 @@ fun TripScreen(
     DisposableEffect(isTrackingLive) {
         if (!isTrackingLive) return@DisposableEffect onDispose {}
 
-        val hasFine = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        val hasCoarse = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
         if (!hasFine && !hasCoarse) {
             isTrackingLive = false
@@ -212,8 +140,7 @@ fun TripScreen(
         val callback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 result.lastLocation?.let { location ->
-                    liveLocation =
-                        "Lat: %.4f, Lng: %.4f".format(location.latitude, location.longitude)
+                    liveLocation = "Lat: %.4f, Lng: %.4f".format(location.latitude, location.longitude)
                 }
             }
         }
@@ -227,8 +154,7 @@ fun TripScreen(
         onDispose {
             try {
                 fusedClient.removeLocationUpdates(callback)
-            } catch (e: Exception) {
-            }
+            } catch (e: Exception) {}
         }
     }
 
@@ -248,8 +174,7 @@ fun TripScreen(
 
     val results = trips.filter { t ->
         val matchesOrigin = origin.isBlank() || t.origin.contains(origin.trim(), ignoreCase = true)
-        val matchesDestination =
-            destination.isBlank() || t.destination.contains(destination.trim(), ignoreCase = true)
+        val matchesDestination = destination.isBlank() || t.destination.contains(destination.trim(), ignoreCase = true)
         val matchesType = when {
             !withCargo && !withPassengers -> true
             else -> (withCargo && t.hasCargo) || (withPassengers && t.hasSeats)
@@ -292,10 +217,7 @@ fun TripScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Icon(
                             imageVector = Icons.Default.MyLocation,
                             contentDescription = null,
@@ -311,8 +233,7 @@ fun TripScreen(
                                 color = PrimaryLight
                             )
                             Text(
-                                text = liveLocation
-                                    ?: (if (isTrackingLive) "Obteniendo posición..." else "Pulsa para iniciar seguimiento"),
+                                text = liveLocation ?: (if (isTrackingLive) "Obteniendo posición..." else "Pulsa para iniciar seguimiento"),
                                 fontSize = 11.sp,
                                 color = OnSurfaceVariant
                             )
@@ -321,14 +242,8 @@ fun TripScreen(
                     Switch(
                         checked = isTrackingLive,
                         onCheckedChange = { checked ->
-                            val hasFine = ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.ACCESS_FINE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
-                            val hasCoarse = ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
+                            val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
                             if (checked && !hasFine && !hasCoarse) {
                                 permissionLauncher.launch(
@@ -400,32 +315,21 @@ fun TripScreen(
                         }
                     }
                 )
-                AppOutlinedTextField(
-                    destination, { destination = it }, label = "Para (destino)",
+                AppOutlinedTextField(destination, { destination = it }, label = "Para (destino)",
                     leadingIcon = Icons.Default.Place,
                     trailingIcon = { Icon(Icons.Default.SwapVert, null, tint = Outline) })
-                AppOutlinedTextField(
-                    date, { date = it }, label = "Fecha de salida",
-                    leadingIcon = Icons.Default.CalendarMonth
-                )
-                AppOutlinedTextField(
-                    time, { time = it }, label = "Horario",
-                    leadingIcon = Icons.Default.Schedule
-                )
+                AppOutlinedTextField(date, { date = it }, label = "Fecha de salida",
+                    leadingIcon = Icons.Default.CalendarMonth)
+                AppOutlinedTextField(time, { time = it }, label = "Horario",
+                    leadingIcon = Icons.Default.Schedule)
             }
 
             // Filtros
             AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                    Text(
-                        "FILTROS DE CAPACIDAD Y TRAYECTO", fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold, color = OnSurfaceVariant
-                    )
-                    Text(
-                        "Restablecer",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Secondary,
+                    Text("FILTROS DE CAPACIDAD Y TRAYECTO", fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
+                    Text("Restablecer", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Secondary,
                         modifier = Modifier.clickable {
                             vehicle = null; withCargo = true; withPassengers = true
                         })
@@ -446,57 +350,31 @@ fun TripScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ToggleBox(
-                        Icons.Default.Inventory2,
-                        "Carga",
-                        withCargo,
-                        { withCargo = it },
-                        Modifier.weight(1f)
-                    )
-                    ToggleBox(
-                        Icons.Default.Groups,
-                        "Pasajeros",
-                        withPassengers,
-                        { withPassengers = it },
-                        Modifier.weight(1f)
-                    )
+                    ToggleBox(Icons.Default.Inventory2, "Carga", withCargo, { withCargo = it }, Modifier.weight(1f))
+                    ToggleBox(Icons.Default.Groups, "Pasajeros", withPassengers, { withPassengers = it }, Modifier.weight(1f))
                 }
             }
 
             // Encabezado de resultados
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Viajes Disponibles", fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                        color = PrimaryLight, fontFamily = FontFamily.Serif
-                    )
+                    Text("Viajes Disponibles", fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                        color = PrimaryLight, fontFamily = FontFamily.Serif)
                     Spacer(Modifier.width(8.dp))
                     StatusTag("${results.size} DISPONIBLES", SurfaceMuted, PrimaryLight)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Sort,
-                        null,
-                        Modifier.size(14.dp),
-                        tint = OnSurfaceVariant
-                    )
+                    Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(14.dp), tint = OnSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
                     Text("Ordenar", fontSize = 11.sp, color = OnSurfaceVariant)
                 }
             }
 
             if (selected != null) {
-                TripDetailCard(selected, role)
+                TripDetailCard(selected, canBook = role == RegistrationRole.CLIENT)
             } else {
                 AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
-                    Icon(
-                        Icons.Default.Map,
-                        null,
-                        Modifier
-                            .size(32.dp)
-                            .align(Alignment.CenterHorizontally),
-                        tint = Outline
-                    )
+                    Icon(Icons.Default.Map, null, Modifier.size(32.dp).align(Alignment.CenterHorizontally), tint = Outline)
                     Text(
                         when {
                             trips.isEmpty() && TripRepository.loadError != null -> TripRepository.loadError!!
@@ -513,10 +391,8 @@ fun TripScreen(
             // Otras salidas
             if (others.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                    Text(
-                        "Otras Salidas", fontSize = 15.sp, fontWeight = FontWeight.Bold,
-                        color = PrimaryLight, fontFamily = FontFamily.Serif
-                    )
+                    Text("Otras Salidas", fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        color = PrimaryLight, fontFamily = FontFamily.Serif)
                     Text("${others.size} alternativas", fontSize = 11.sp, color = OnSurfaceVariant)
                 }
                 others.forEach { trip -> OtherDepartureRow(trip) { selectedId = trip.id } }
@@ -526,80 +402,23 @@ fun TripScreen(
 }
 
 @Composable
-private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
-    var showDialog by remember(t.id) { mutableStateOf(false) }
-    var kind by remember(t.id) { mutableStateOf(if (t.hasSeats) "seat" else "cargo") }
-    var quantity by remember(t.id) { mutableStateOf("1") }
-    var bookingError by remember(t.id) { mutableStateOf<String?>(null) }
-    var isBooking by remember(t.id) { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+private fun TripDetailCard(t: AvailableTrip, canBook: Boolean) {
     val context = LocalContext.current
+    val hasPhone = t.driverPhone.isNotBlank()
+    var showBooking by remember(t.id) { mutableStateOf(false) }
+    var bookedMessage by remember(t.id) { mutableStateOf<String?>(null) }
+    val soldOut = (!t.hasSeats || t.seatsFree <= 0) && (!t.hasCargo || t.cargoFreeKg <= 0)
 
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { if (!isBooking) showDialog = false },
-            title = { Text("Reservar en ${t.id}") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (t.hasSeats) {
-                            FilterChip(
-                                selected = kind == "seat",
-                                onClick = { kind = "seat" },
-                                label = { Text("Cupos") })
-                        }
-                        if (t.hasCargo) {
-                            FilterChip(
-                                selected = kind == "cargo",
-                                onClick = { kind = "cargo" },
-                                label = { Text("Flete (kg)") })
-                        }
-                    }
-                    OutlinedTextField(
-                        value = quantity,
-                        onValueChange = { quantity = it.filter { c -> c.isDigit() } },
-                        label = { Text(if (kind == "seat") "Cantidad de cupos" else "Kilos a enviar") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                    bookingError?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !isBooking,
-                    onClick = {
-                        bookingError = null
-                        isBooking = true
-                        scope.launch {
-                            TripRepository.book(t, kind, quantity.toIntOrNull() ?: 0)
-                                .onSuccess {
-                                    isBooking = false
-                                    showDialog = false
-                                    Toast.makeText(
-                                        context,
-                                        "Reserva confirmada",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                .onFailure { e ->
-                                    isBooking = false
-                                    bookingError = TripRepository.friendlyError(e)
-                                }
-                        }
-                    }
-                ) { Text(if (isBooking) "Reservando..." else "Confirmar") }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !isBooking,
-                    onClick = { showDialog = false }) { Text("Cancelar") }
+    if (showBooking) {
+        BookingDialog(
+            t = t,
+            onDismiss = { showBooking = false },
+            onBooked = { message ->
+                showBooking = false
+                bookedMessage = message
             }
         )
     }
-
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -610,16 +429,11 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
         Column {
             // Cabecera oscura
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .background(PrimaryLight)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().background(PrimaryLight).padding(horizontal = 14.dp, vertical = 10.dp),
                 Arrangement.SpaceBetween, Alignment.CenterVertically
             ) {
-                Text(
-                    "VIAJE SELECCIONADO • EN DETALLE", color = OnPrimary, fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("VIAJE SELECCIONADO • EN DETALLE", color = OnPrimary, fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold)
                 StatusTag(t.id, SurfaceMuted, PrimaryLight)
             }
 
@@ -635,92 +449,66 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
 
                 // Conductor
                 Surface(color = SurfaceSoft, shape = RoundedCornerShape(10.dp)) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.AccountCircle,
-                            null,
-                            Modifier.size(44.dp),
-                            tint = PrimaryLight
-                        )
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccountCircle, null, Modifier.size(44.dp), tint = PrimaryLight)
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(
-                                t.driver,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryLight
-                            )
+                            Text(t.driver, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.Star,
-                                    null,
-                                    Modifier.size(13.dp),
-                                    tint = RatingStar
-                                )
+                                Icon(Icons.Default.Star, null, Modifier.size(13.dp), tint = RatingStar)
                                 Spacer(Modifier.width(2.dp))
-                                Text(
-                                    "${t.rating} · ${t.verifiedTrips} viajes verificados",
-                                    fontSize = 11.sp, color = OnSurfaceVariant
-                                )
+                                Text("${t.rating} · ${t.verifiedTrips} viajes verificados",
+                                    fontSize = 11.sp, color = OnSurfaceVariant)
                             }
-                            StatusTag(
-                                "Conductor Verificado",
-                                StatusAvailableBg,
-                                StatusAvailable,
-                                Icons.Default.Verified
-                            )
+                            if (t.driverVerified) {
+                                StatusTag("Conductor Verificado", StatusAvailableBg, StatusAvailable, Icons.Default.Verified)
+                            } else {
+                                StatusTag("Sin verificar", SurfaceMuted, Outline, Icons.Default.Info)
+                            }
                         }
                         Column {
-                            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Default.Call, "Llamar", tint = PrimaryLight)
+                            IconButton(
+                                onClick = { openDialer(context, t.driverPhone) },
+                                enabled = hasPhone,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Default.Call, "Llamar", tint = if (hasPhone) PrimaryLight else Outline)
                             }
-                            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.AutoMirrored.Filled.Chat, "Mensaje", tint = PrimaryLight)
+                            IconButton(
+                                onClick = {
+                                    openWhatsApp(
+                                        context, t.driverPhone,
+                                        "Hola ${t.driver}, te escribo por tu viaje ${t.id} " +
+                                                "(${t.origin} → ${t.destination}) en Ruta Confiable."
+                                    )
+                                },
+                                enabled = hasPhone,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Chat, "Mensaje", tint = if (hasPhone) PrimaryLight else Outline)
                             }
                         }
                     }
                 }
 
-                InfoRow(
-                    Icons.Default.DirectionsCar,
-                    "VEHÍCULO DE CARGA Y PASAJE",
-                    t.vehicle,
-                    t.vehicleDetail
-                )
+                InfoRow(Icons.Default.DirectionsCar, "VEHÍCULO DE CARGA Y PASAJE", t.vehicle, t.vehicleDetail)
 
                 // Placa
                 Surface(
                     shape = RoundedCornerShape(10.dp), color = CardBackground,
                     border = BorderStroke(1.dp, OutlineVariant)
                 ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Badge, null, tint = PrimaryLight)
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text("PLACA Y REGISTRO", fontSize = 10.sp, color = OnSurfaceVariant)
                             StatusTag(t.plate, PlateYellow, OnPlateYellow)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.VerifiedUser,
-                                    null,
-                                    Modifier.size(12.dp),
-                                    tint = StatusAvailable
-                                )
+                                Icon(Icons.Default.VerifiedUser, null, Modifier.size(12.dp), tint = StatusAvailable)
                                 Spacer(Modifier.width(4.dp))
-                                Text(
-                                    "SOAT vigente comprobado", fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold, color = StatusAvailable
-                                )
+                                Text("SOAT vigente comprobado", fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold, color = StatusAvailable)
                             }
                         }
                     }
@@ -728,55 +516,27 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
 
                 // Capacidad
                 Surface(color = SurfaceSoft, shape = RoundedCornerShape(10.dp)) {
-                    Column(
-                        Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            Arrangement.SpaceBetween,
-                            Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "CAPACIDAD DISPONIBLE EN RUTA", fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold, color = OnSurfaceVariant
-                            )
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                            Text("CAPACIDAD DISPONIBLE EN RUTA", fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
                             StatusTag("Espacio Confirmado", StatusAvailableBg, StatusAvailable)
                         }
                         if (t.hasCargo) {
-                            CapacityRow(
-                                Icons.Default.Inventory2,
-                                "Carga Flete",
-                                "${t.cargoFreeKg} kg libres",
-                                t.cargoNote
-                            ) {
+                            CapacityRow(Icons.Default.Inventory2, "Carga Flete", "${t.cargoFreeKg} kg libres", t.cargoNote) {
                                 LinearProgressIndicator(
-                                    progress = {
-                                        (t.cargoFreeKg.toFloat() / t.cargoTotalKg).coerceIn(
-                                            0f,
-                                            1f
-                                        )
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(5.dp),
+                                    progress = { (t.cargoFreeKg.toFloat() / t.cargoTotalKg).coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth().height(5.dp),
                                     color = SecondaryContainer, trackColor = SurfaceVariant
                                 )
                             }
                         }
                         if (t.hasSeats) {
-                            CapacityRow(
-                                Icons.Default.EventSeat,
-                                "Pasajeros",
-                                "${t.seatsFree} cupos libres",
-                                t.seatsNote
-                            ) {
+                            CapacityRow(Icons.Default.EventSeat, "Pasajeros", "${t.seatsFree} cupos libres", t.seatsNote) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     repeat(t.seatsTotal) { i ->
                                         Box(
-                                            Modifier
-                                                .size(10.dp)
-                                                .clip(CircleShape)
+                                            Modifier.size(10.dp).clip(CircleShape)
                                                 .background(if (i < t.seatsFree) PrimaryLight else SurfaceVariant)
                                         )
                                     }
@@ -791,34 +551,33 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
                     if (t.hasCargo) {
                         Column {
                             Text("CARGA", fontSize = 10.sp, color = OnSurfaceVariant)
-                            Text(
-                                "${t.cargoPrice} COP",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryLight
-                            )
+                            Text("${t.cargoPrice} COP", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
                         }
                     } else Spacer(Modifier.width(1.dp))
                     if (t.hasSeats) {
                         Column(horizontalAlignment = Alignment.End) {
                             Text("CUPO A BORDO", fontSize = 10.sp, color = OnSurfaceVariant)
-                            Text(
-                                "${t.seatPrice} COP",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Secondary
-                            )
+                            Text("${t.seatPrice} COP", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Secondary)
                         }
                     }
                 }
 
-                if (role == RegistrationRole.CLIENT) {
-                    PrimaryButton(
-                        text = "Reservar cupo o solicitar flete",
-                        onClick = {  bookingError = null; showDialog = true },
-                        leadingIcon = Icons.Default.LocalShipping,
-                        trailingIcon = null,
-                        containerColor = SecondaryContainer
+                PrimaryButton(
+                    text = when {
+                        !canBook -> "Solo los clientes pueden reservar"
+                        soldOut -> "Sin cupo disponible"
+                        else -> "Reservar cupo o solicitar flete"
+                    },
+                    onClick = { showBooking = true },
+                    enabled = canBook && !soldOut,
+                    leadingIcon = Icons.Default.LocalShipping,
+                    trailingIcon = null,
+                    containerColor = SecondaryContainer
+                )
+                bookedMessage?.let {
+                    Text(
+                        it, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = StatusAvailable,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                     )
                 }
                 Text(
@@ -831,40 +590,124 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
     }
 }
 
+/** Abre el marcador del teléfono con el número del conductor (no necesita permisos). */
+private fun openDialer(context: Context, phoneDigits: String) {
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:+$phoneDigits")))
+    }
+}
+
+/** Abre un chat de WhatsApp con el conductor; si no hay WhatsApp, abre el enlace en el navegador. */
+private fun openWhatsApp(context: Context, phoneDigits: String, text: String) {
+    runCatching {
+        val uri = Uri.parse("https://wa.me/$phoneDigits?text=${Uri.encode(text)}")
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+    }
+}
+
+/** Pide cuántos cupos y/o kilos reservar y crea la reserva en Firestore. */
+@Composable
+private fun BookingDialog(
+    t: AvailableTrip,
+    onDismiss: () -> Unit,
+    onBooked: (message: String) -> Unit
+) {
+    val canSeats = t.hasSeats && t.seatsFree > 0
+    val canCargo = t.hasCargo && t.cargoFreeKg > 0
+    var seats by remember { mutableIntStateOf(0) }
+    var cargoText by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var isBooking by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val cargoKg = cargoText.toIntOrNull() ?: 0
+
+    fun confirm() {
+        if (cargoKg > t.cargoFreeKg) {
+            error = "Solo quedan ${t.cargoFreeKg} kg libres."
+            return
+        }
+        error = null
+        isBooking = true
+        scope.launch {
+            BookingRepository.book(t, seats, cargoKg)
+                .onSuccess {
+                    isBooking = false
+                    onBooked("Reserva enviada. El conductor la confirmará pronto.")
+                }
+                .onFailure { e ->
+                    isBooking = false
+                    error = TripRepository.friendlyError(e)
+                }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!isBooking) onDismiss() },
+        title = { Text("Reservar en ${t.id}", fontWeight = FontWeight.Bold, color = PrimaryLight) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (canSeats) {
+                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                        Column {
+                            Text("Cupos", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("${t.seatsFree} libres · ${t.seatPrice} COP c/u", fontSize = 11.sp, color = OnSurfaceVariant)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { if (seats > 0) seats-- }, enabled = !isBooking && seats > 0) {
+                                Icon(Icons.Default.Remove, "Menos cupos")
+                            }
+                            Text("$seats", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            IconButton(onClick = { if (seats < t.seatsFree) seats++ }, enabled = !isBooking && seats < t.seatsFree) {
+                                Icon(Icons.Default.Add, "Más cupos")
+                            }
+                        }
+                    }
+                }
+                if (canCargo) {
+                    OutlinedTextField(
+                        value = cargoText,
+                        onValueChange = { cargoText = it.filter(Char::isDigit).take(6) },
+                        label = { Text("Carga en kg (máx. ${t.cargoFreeKg})") },
+                        supportingText = { Text("${t.cargoPrice} COP") },
+                        singleLine = true,
+                        enabled = !isBooking,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                error?.let { Text(it, fontSize = 12.sp, color = StatusBooked) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { confirm() },
+                enabled = !isBooking && (seats > 0 || cargoKg > 0)
+            ) { Text(if (isBooking) "Reservando..." else "Confirmar reserva") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isBooking) { Text("Cancelar") }
+        }
+    )
+}
+
 @Composable
 private fun RouteMapPreview(distance: String, duration: String) {
     Box(
-        Modifier
-            .fillMaxWidth()
-            .height(140.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(MapBackground)
+        Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(10.dp)).background(MapBackground)
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val start = Offset(size.width * 0.10f, size.height * 0.78f)
             val end = Offset(size.width * 0.88f, size.height * 0.25f)
             val path = Path().apply {
                 moveTo(start.x, start.y)
-                cubicTo(
-                    size.width * 0.35f,
-                    size.height * 0.95f,
-                    size.width * 0.50f,
-                    size.height * 0.15f,
-                    end.x,
-                    end.y
-                )
+                cubicTo(size.width * 0.35f, size.height * 0.95f, size.width * 0.50f, size.height * 0.15f, end.x, end.y)
             }
             drawPath(path, MapRoadLine, style = Stroke(width = 14f, cap = StrokeCap.Round))
             drawPath(path, SecondaryContainer, style = Stroke(width = 7f, cap = StrokeCap.Round))
             drawCircle(StatusAvailable, 16f, start)
             drawCircle(StatusBooked, 16f, end)
         }
-        Row(
-            Modifier
-                .align(Alignment.TopStart)
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
+        Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             StatusTag(distance, PrimaryLight, OnPrimary, Icons.Default.Route)
             StatusTag(duration, PrimaryLight, OnPrimary, Icons.Default.Schedule)
         }
@@ -877,26 +720,14 @@ private fun CapacityRow(
     indicator: @Composable () -> Unit
 ) {
     Surface(color = CardBackground, shape = RoundedCornerShape(8.dp)) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(color = SecondarySoft, shape = RoundedCornerShape(8.dp)) {
-                Icon(icon, null, Modifier
-                    .padding(8.dp)
-                    .size(20.dp), tint = Secondary)
+                Icon(icon, null, Modifier.padding(8.dp).size(20.dp), tint = Secondary)
             }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                    Text(
-                        title,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryLight
-                    )
+                    Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
                     Text(free, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Secondary)
                 }
                 indicator()
@@ -908,17 +739,8 @@ private fun CapacityRow(
 
 @Composable
 private fun InfoRow(icon: ImageVector, label: String, title: String, subtitle: String) {
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = CardBackground,
-        border = BorderStroke(1.dp, OutlineVariant)
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    Surface(shape = RoundedCornerShape(10.dp), color = CardBackground, border = BorderStroke(1.dp, OutlineVariant)) {
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = PrimaryLight)
             Spacer(Modifier.width(10.dp))
             Column {
@@ -933,9 +755,7 @@ private fun InfoRow(icon: ImageVector, label: String, title: String, subtitle: S
 @Composable
 private fun OtherDepartureRow(t: AvailableTrip, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(10.dp), color = CardBackground,
         border = BorderStroke(1.dp, OutlineVariant)
     ) {
@@ -943,20 +763,13 @@ private fun OtherDepartureRow(t: AvailableTrip, onClick: () -> Unit) {
             Icon(Icons.Default.LocalShipping, null, tint = PrimaryLight)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(
-                    "${t.departure} · ${t.vehicle}",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryLight
-                )
+                Text("${t.departure} · ${t.vehicle}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
                 Text("${t.origin} → ${t.destination}", fontSize = 10.sp, color = OnSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.End) {
                 if (t.hasSeats) StatusTag("${t.seatsFree} cupo", StatusAvailableBg, StatusAvailable)
-                Text(
-                    if (t.hasCargo) t.cargoPrice else t.seatPrice,
-                    fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Secondary
-                )
+                Text(if (t.hasCargo) t.cargoPrice else t.seatPrice,
+                    fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Secondary)
             }
         }
     }
@@ -967,17 +780,8 @@ private fun ToggleBox(
     icon: ImageVector, label: String, checked: Boolean,
     onChange: (Boolean) -> Unit, modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier,
-        color = SurfaceSoft,
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, OutlineVariant)
-    ) {
-        Row(
-            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            Arrangement.SpaceBetween,
-            Alignment.CenterVertically
-        ) {
+    Surface(modifier, color = SurfaceSoft, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, OutlineVariant)) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
             Icon(icon, null, Modifier.size(18.dp), tint = Secondary)
             Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
             AppSwitch(checked, onChange)
@@ -991,13 +795,7 @@ private fun TripBox(content: @Composable ColumnScope.() -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         color = CardBackground, shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, OutlineVariant), shadowElevation = 1.dp
-    ) {
-        Column(
-            Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            content = content
-        )
-    }
+    ) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content) }
 }
 
 private fun fetchCurrentLocation(context: Context, onLocationResult: (String) -> Unit) {
@@ -1020,12 +818,10 @@ private fun fetchCurrentLocation(context: Context, onLocationResult: (String) ->
                 val latLngStr = "Lat: %.4f, Lng: %.4f".format(location.latitude, location.longitude)
                 try {
                     val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
-                    val addresses =
-                        geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
                     if (!addresses.isNullOrEmpty()) {
                         val address = addresses[0]
-                        val cityName = address.locality ?: address.subAdminArea ?: address.adminArea
-                        ?: latLngStr
+                        val cityName = address.locality ?: address.subAdminArea ?: address.adminArea ?: latLngStr
                         onLocationResult(cityName)
                     } else {
                         onLocationResult(latLngStr)

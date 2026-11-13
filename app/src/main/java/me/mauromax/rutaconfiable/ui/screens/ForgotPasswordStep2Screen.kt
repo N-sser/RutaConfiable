@@ -1,30 +1,14 @@
 package me.mauromax.rutaconfiable.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.MarkEmailRead
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -33,27 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import me.mauromax.rutaconfiable.ui.components.AppCard
-import me.mauromax.rutaconfiable.ui.components.BodyText
-import me.mauromax.rutaconfiable.ui.components.Hint
-import me.mauromax.rutaconfiable.ui.components.PillTag
-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
-import me.mauromax.rutaconfiable.ui.components.ScreenColumn
-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
-import me.mauromax.rutaconfiable.ui.components.SecondaryOutlinedButton
-import me.mauromax.rutaconfiable.ui.components.SecurityAdviceBox
-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
-import me.mauromax.rutaconfiable.ui.components.StepProgressBarCard
-import me.mauromax.rutaconfiable.ui.components.TlsEncryptionBadge
-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
-import me.mauromax.rutaconfiable.ui.theme.Background
-import me.mauromax.rutaconfiable.ui.theme.ErrorContainer
-import me.mauromax.rutaconfiable.ui.theme.OnErrorContainer
-import me.mauromax.rutaconfiable.ui.theme.Outline
-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
-import me.mauromax.rutaconfiable.ui.theme.Secondary
-import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
+import me.mauromax.rutaconfiable.ui.components.*
+import me.mauromax.rutaconfiable.ui.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.theme.*
 
 private const val RESEND_COOLDOWN_SECONDS = 60
 

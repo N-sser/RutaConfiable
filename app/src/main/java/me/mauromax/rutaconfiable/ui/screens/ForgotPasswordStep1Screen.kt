@@ -1,11 +1,7 @@
 package me.mauromax.rutaconfiable.ui.screens
 
 import android.util.Patterns
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -13,17 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -32,26 +19,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import me.mauromax.rutaconfiable.ui.components.AppCard
-import me.mauromax.rutaconfiable.ui.components.BodyText
-import me.mauromax.rutaconfiable.ui.components.FieldLabel
-import me.mauromax.rutaconfiable.ui.components.Hint
-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
-import me.mauromax.rutaconfiable.ui.components.ScreenColumn
-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
-import me.mauromax.rutaconfiable.ui.components.SecondaryOutlinedButton
-import me.mauromax.rutaconfiable.ui.components.SecurityAdviceBox
-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
-import me.mauromax.rutaconfiable.ui.components.TlsEncryptionBadge
-import me.mauromax.rutaconfiable.ui.components.customTextFieldColors
-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
-import me.mauromax.rutaconfiable.ui.theme.Background
-import me.mauromax.rutaconfiable.ui.theme.ErrorContainer
-import me.mauromax.rutaconfiable.ui.theme.OnErrorContainer
-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
-import me.mauromax.rutaconfiable.ui.theme.Secondary
-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
+import me.mauromax.rutaconfiable.ui.components.*
+import me.mauromax.rutaconfiable.ui.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.theme.*
 
 @Composable
 fun ForgotPasswordStep1Screen(

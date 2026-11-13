@@ -17,24 +17,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.withTimeoutOrNull
-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
-import me.mauromax.rutaconfiable.ui.components.data.Booking
-import me.mauromax.rutaconfiable.ui.components.data.ProfileData
-import me.mauromax.rutaconfiable.ui.components.data.ProfileRepository
-import me.mauromax.rutaconfiable.ui.components.data.TripRepository
-import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep1Screen
-import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep2Screen
-import me.mauromax.rutaconfiable.ui.screens.HomeScreen
-import me.mauromax.rutaconfiable.ui.screens.LoadsScreen
-import me.mauromax.rutaconfiable.ui.screens.LoginScreen
-import me.mauromax.rutaconfiable.ui.screens.MyShipmentsScreen
-import me.mauromax.rutaconfiable.ui.screens.PaymentMethodsScreen
-import me.mauromax.rutaconfiable.ui.screens.ProfileScreen
-import me.mauromax.rutaconfiable.ui.screens.RegistrationRole
-import me.mauromax.rutaconfiable.ui.screens.RegistrationScreen
-import me.mauromax.rutaconfiable.ui.screens.TripScreen
-import me.mauromax.rutaconfiable.ui.screens.VerificationPendingScreen
-import me.mauromax.rutaconfiable.ui.screens.WelcomeScreen
+import me.mauromax.rutaconfiable.ui.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.data.Booking
+import me.mauromax.rutaconfiable.ui.data.BookingRepository
+import me.mauromax.rutaconfiable.ui.data.ProfileData
+import me.mauromax.rutaconfiable.ui.data.ProfileRepository
+import me.mauromax.rutaconfiable.ui.screens.*
 import me.mauromax.rutaconfiable.ui.theme.Background
 import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
 
@@ -105,15 +93,22 @@ fun AppNavGraph(
     navController: NavHostController = rememberNavController()
 ) {
     // Pantalla inicial según la sesión guardada por Firebase (null = todavía resolviendo).
+    // Con sesión: cuenta verificada -> perfil; cuenta sin verificar -> pantalla de verificación.
     val resolvedStart by produceState<String?>(initialValue = null) {
         value = if (!AuthRepository.isLoggedIn) {
             Screen.Welcome.route
         } else {
-            when (withTimeoutOrNull(8_000) { AuthRepository.getRole() }) {
-                "client" -> Screen.Profile.createRoute("client")
-                "driver" -> Screen.Profile.createRoute("driver")
+            val status = withTimeoutOrNull(8_000) { AuthRepository.getAccountStatus() }
+            val role = when (status?.role) {
+                "client" -> "client"
+                "driver" -> "driver"
+                else -> null
+            }
+            when {
                 // Sin rol o sin conexión: se pide iniciar sesión, sin cerrar la sesión guardada.
-                else -> Screen.Welcome.route
+                status == null || role == null -> Screen.Welcome.route
+                status.isVerified -> Screen.Profile.createRoute(role)
+                else -> Screen.VerificationPending.createRoute(role)
             }
         }
     }
@@ -121,9 +116,7 @@ fun AppNavGraph(
     val startRoute = resolvedStart
     if (startRoute == null) {
         Box(
-            Modifier
-                .fillMaxSize()
-                .background(Background),
+            Modifier.fillMaxSize().background(Background),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = PrimaryLight)
@@ -145,6 +138,18 @@ fun AppNavGraph(
                     navController.navigate(
                         Screen.Registration.createRoute("driver")
                     )
+                },
+                onGoogleSignedIn = { role, verified ->
+                    val destination = if (verified) {
+                        Screen.Profile.createRoute(roleParam(role))
+                    } else {
+                        Screen.VerificationPending.createRoute(roleParam(role))
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(Screen.Welcome.route) {
+                            inclusive = true
+                        }
+                    }
                 }
             )
         }
@@ -154,7 +159,7 @@ fun AppNavGraph(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onLoginSuccess = { selectedRole ->
+                onLoginSuccess = { selectedRole, verified ->
                     val routeRole =
                         if (selectedRole == RegistrationRole.CLIENT) {
                             "client"
@@ -162,9 +167,14 @@ fun AppNavGraph(
                             "driver"
                         }
 
-                    navController.navigate(
+                    // Cuenta sin aprobar: no entra al perfil, queda en la pantalla de verificación.
+                    val destination = if (verified) {
                         Screen.Profile.createRoute(routeRole)
-                    ) {
+                    } else {
+                        Screen.VerificationPending.createRoute(routeRole)
+                    }
+
+                    navController.navigate(destination) {
                         popUpTo(Screen.Welcome.route) {
                             inclusive = true
                         }
@@ -292,10 +302,15 @@ fun AppNavGraph(
 
             VerificationPendingScreen(
                 role = role,
+                // Se llama solo cuando un administrador aprobó la cuenta.
                 onNavigateToProfile = {
                     navController.navigate(
                         Screen.Profile.createRoute(roleParam(role))
-                    )
+                    ) {
+                        popUpTo(Screen.VerificationPending.route) {
+                            inclusive = true
+                        }
+                    }
                 },
                 onResetRegistration = {
                     AuthRepository.logout()
@@ -329,7 +344,7 @@ fun AppNavGraph(
                 userName = profile.name,
                 stats = profile.stats,
                 trips = profile.trips,
-                bookings = profile.bookings,
+                nextTrip = profile.nextTrip,
                 onLogout = {
                     AuthRepository.logout()
                     navController.navigate(Screen.Welcome.route) {
@@ -345,7 +360,6 @@ fun AppNavGraph(
                     )
                 },
                 onNavigateToLoads = { navController.goCargas(role) }
-
             )
         }
 
@@ -365,11 +379,10 @@ fun AppNavGraph(
 
             TripScreen(
                 role = role,
-                onNavigateToLoads = {
-                    navController.goCargas(role)
+                onNavigateToHome = {
+                    navController.goTab(Screen.Home.createRoute(roleParam(role)))
                 },
-                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
-
+                onNavigateToLoads = { navController.goCargas(role) },
                 onNavigateToProfile = {
                     navController.goTab(
                         Screen.Profile.createRoute(roleParam(role))
@@ -399,7 +412,9 @@ fun AppNavGraph(
                         Screen.Trips.createRoute(roleParam(role))
                     )
                 },
-                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
+                onNavigateToHome = {
+                    navController.goTab(Screen.Home.createRoute(roleParam(role)))
+                },
                 onNavigateToTrips = {
                     navController.goTab(
                         Screen.Trips.createRoute(roleParam(role))
@@ -412,6 +427,7 @@ fun AppNavGraph(
                 }
             )
         }
+
         composable(
             route = Screen.Home.route,
             arguments = listOf(navArgument("role") {
@@ -428,13 +444,7 @@ fun AppNavGraph(
                 onNavigateToLoads = { navController.goCargas(role) },
                 onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
                 onNavigateToProfile = {
-                    navController.goTab(
-                        Screen.Profile.createRoute(
-                            roleParam(
-                                role
-                            )
-                        )
-                    )
+                    navController.goTab(Screen.Profile.createRoute(roleParam(role)))
                 }
             )
         }
@@ -447,21 +457,14 @@ fun AppNavGraph(
         ) { backStackEntry ->
             val role = parseRole(backStackEntry.arguments?.getString("role"))
             val bookings by produceState(initialValue = emptyList<Booking>()) {
-                value = TripRepository.loadMyBookings(asDriver = false).getOrDefault(emptyList())
+                value = BookingRepository.loadMyBookings().getOrDefault(emptyList())
             }
-
             MyShipmentsScreen(
                 bookings = bookings,
                 onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
                 onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
                 onNavigateToProfile = {
-                    navController.goTab(
-                        Screen.Profile.createRoute(
-                            roleParam(
-                                role
-                            )
-                        )
-                    )
+                    navController.goTab(Screen.Profile.createRoute(roleParam(role)))
                 }
             )
         }
