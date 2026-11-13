@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -45,6 +46,7 @@ import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.AppCard
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StatusTag
+import me.mauromax.rutaconfiable.ui.components.data.Booking
 import me.mauromax.rutaconfiable.ui.theme.Background
 import me.mauromax.rutaconfiable.ui.theme.CardBackground
 import me.mauromax.rutaconfiable.ui.theme.OnSecondaryContainer
@@ -88,6 +90,7 @@ fun ProfileScreen(
     stats: ProfileStats = ProfileStats(),
     nextTrip: NextTrip? = null,
     trips: List<Trip> = emptyList(),
+    bookings: List<Booking> = emptyList(),
     onLogout: () -> Unit = {},
     onNavigateToHome: () -> Unit = {},
     onNavigateToTrips: () -> Unit = {},
@@ -194,6 +197,15 @@ fun ProfileScreen(
                 "Aún no tienes viajes programados."
             )
             else trips.forEach { TripRow(it) }
+
+
+            // Reservas recibidas (solo conductor)
+            if (isDriver) {
+                    SectionHeader("Reservas Recibidas") {}
+                    if (bookings.isEmpty()) EmptyState(Icons.Default.Inventory2, "Aún no tienes reservas.")
+                    else bookings.forEach { BookingCard(it, showClient = true) }
+                }
+
         }
     }
 }

@@ -15,6 +15,17 @@ import me.mauromax.rutaconfiable.ui.components.data.TripRepository.trips
 import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
 import java.security.SecureRandom
 
+/** Reserva hecha por un cliente en un viaje. [kind] es "seat" (cupos) o "cargo" (kg). */
+data class Booking(
+    val id: String,
+    val route: String,
+    val date: String,
+    val clientName: String,
+    val kind: String,
+    val quantity: Int,
+    val createdAt: Long
+)
+
 /** Error con un mensaje ya listo para mostrar al usuario. */
 class TripException(message: String) : Exception(message)
 
@@ -113,10 +124,10 @@ object TripRepository {
     }
 
     /**
-    +     * Reserva cupos ([kind] = "seat") o kilos de flete ([kind] = "cargo") en un viaje.
-    +     * En una sola transacción descuenta lo reservado del viaje y guarda la reserva
-    +     * en la colección "bookings". Así dos clientes no pueden reservar el mismo cupo.
-    +     */
+     * Reserva cupos ([kind] = "seat") o kilos de flete ([kind] = "cargo") en un viaje.
+     * En una sola transacción descuenta lo reservado del viaje y guarda la reserva
+     * en la colección "bookings". Así dos clientes no pueden reservar el mismo cupo.
+     */
     suspend fun book(trip: AvailableTrip, kind: String, quantity: Int): Result<Unit> = runCatching {
         val uid = auth.currentUser?.uid
             ?: throw TripException("Inicia sesión para reservar.")
@@ -124,8 +135,8 @@ object TripRepository {
         if (trip.driverUid == uid) throw TripException("No puedes reservar tu propio viaje.")
 
         val clientName = runCatching {
-                db.collection("users").document(uid).get().await().getString("name")
-            }.getOrNull().orEmpty()
+            db.collection("users").document(uid).get().await().getString("name")
+        }.getOrNull().orEmpty()
 
         val field = if (kind == "seat") "seatsFree" else "cargoFreeKg"
         val tripRef = db.collection(COLLECTION).document(trip.id)
@@ -133,37 +144,67 @@ object TripRepository {
 
         // Devuelve (se pudo reservar, cuántos quedaban libres).
         val (booked, free) = db.runTransaction<Pair<Boolean, Long>> { tx ->
-                val snap = tx.get(tripRef)
-                val available = snap.getLong(field) ?: 0L
-                if (!snap.exists() || quantity > available) {
-                        Pair(false, available)
-                    } else {
-                        tx.update(tripRef, field, available - quantity)
-                        tx.set(
-                                bookingRef, mapOf(
-                                        "tripId" to trip.id,
-                                        "driverUid" to trip.driverUid,
-                                        "clientUid" to uid,
-                                        "clientName" to clientName,
-                                        "kind" to kind,
-                                        "quantity" to quantity,
-                                        "status" to "pending",
-                                        "createdAt" to System.currentTimeMillis()
-                                            )
-                                    )
-                        Pair(true, available - quantity)
-                    }
-            }.await()
+            val snap = tx.get(tripRef)
+            val available = snap.getLong(field) ?: 0L
+            if (!snap.exists() || quantity > available) {
+                Pair(false, available)
+            } else {
+                tx.update(tripRef, field, available - quantity)
+                tx.set(
+                    bookingRef, mapOf(
+                        "tripId" to trip.id,
+                        "route" to trip.road,
+                        "date" to trip.date,
+                        "driverUid" to trip.driverUid,
+                        "clientUid" to uid,
+                        "clientName" to clientName,
+                        "kind" to kind,
+                        "quantity" to quantity,
+                        "status" to "pending",
+                        "createdAt" to System.currentTimeMillis()
+                    )
+                )
+                Pair(true, available - quantity)
+            }
+        }.await()
 
         if (!booked) throw TripException("Ya no hay disponibilidad suficiente (quedan $free).")
+    }
+
+    /**
+     * Reservas del usuario con sesión: las que recibió (conductor) o las que hizo (cliente),
+     * de la más reciente a la más antigua.
+     */
+    suspend fun loadMyBookings(asDriver: Boolean): Result<List<Booking>> = runCatching {
+        val uid = auth.currentUser?.uid
+            ?: throw TripException("Inicia sesión para ver tus reservas.")
+        db.collection("bookings")
+            .whereEqualTo(if (asDriver) "driverUid" else "clientUid", uid)
+            .get()
+            .await()
+            .documents
+            .map {
+                Booking(
+                    id = it.id,
+                    route = it.getString("route") ?: it.getString("tripId").orEmpty(),
+                    date = it.getString("date").orEmpty(),
+                    clientName = it.getString("clientName").orEmpty(),
+                    kind = it.getString("kind").orEmpty(),
+                    quantity = it.getLong("quantity")?.toInt() ?: 0,
+                    createdAt = it.getLong("createdAt") ?: 0L
+                )
+            }
+            .sortedByDescending { it.createdAt }
     }
 
     fun friendlyError(e: Throwable): String = when {
         e is TripException -> e.message ?: "No se pudo completar. Intenta de nuevo."
         e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.UNAVAILABLE ->
             "Sin conexión a internet."
+
         e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ->
             "No tienes permiso para esta acción."
+
         else -> "No se pudo completar. Intenta de nuevo."
     }
 
@@ -171,33 +212,34 @@ object TripRepository {
         CharArray(CODE_LENGTH) { CODE_ALPHABET[random.nextInt(CODE_ALPHABET.length)] }
     )
 
-    private fun AvailableTrip.toMap(driverUid: String, driverName: String): Map<String, Any> = mapOf(
-        "driverUid" to driverUid,
-        "driver" to driverName,
-        "departure" to departure,
-        "rating" to rating,
-        "verifiedTrips" to verifiedTrips,
-        "vehicle" to vehicle,
-        "vehicleDetail" to vehicleDetail,
-        "plate" to plate,
-        "cargoFreeKg" to cargoFreeKg,
-        "cargoTotalKg" to cargoTotalKg,
-        "cargoNote" to cargoNote,
-        "seatsFree" to seatsFree,
-        "seatsTotal" to seatsTotal,
-        "seatsNote" to seatsNote,
-        "cargoPrice" to cargoPrice,
-        "seatPrice" to seatPrice,
-        "distance" to distance,
-        "duration" to duration,
-        "road" to road,
-        "origin" to origin,
-        "destination" to destination,
-        "date" to date,
-        "hasCargo" to hasCargo,
-        "hasSeats" to hasSeats,
-        "createdAt" to System.currentTimeMillis()
-    )
+    private fun AvailableTrip.toMap(driverUid: String, driverName: String): Map<String, Any> =
+        mapOf(
+            "driverUid" to driverUid,
+            "driver" to driverName,
+            "departure" to departure,
+            "rating" to rating,
+            "verifiedTrips" to verifiedTrips,
+            "vehicle" to vehicle,
+            "vehicleDetail" to vehicleDetail,
+            "plate" to plate,
+            "cargoFreeKg" to cargoFreeKg,
+            "cargoTotalKg" to cargoTotalKg,
+            "cargoNote" to cargoNote,
+            "seatsFree" to seatsFree,
+            "seatsTotal" to seatsTotal,
+            "seatsNote" to seatsNote,
+            "cargoPrice" to cargoPrice,
+            "seatPrice" to seatPrice,
+            "distance" to distance,
+            "duration" to duration,
+            "road" to road,
+            "origin" to origin,
+            "destination" to destination,
+            "date" to date,
+            "hasCargo" to hasCargo,
+            "hasSeats" to hasSeats,
+            "createdAt" to System.currentTimeMillis()
+        )
 
     private fun DocumentSnapshot.toTrip(): AvailableTrip? = runCatching {
         AvailableTrip(
