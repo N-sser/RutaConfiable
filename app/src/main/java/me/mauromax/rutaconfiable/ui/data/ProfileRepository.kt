@@ -6,7 +6,6 @@ import me.mauromax.rutaconfiable.ui.screens.NextTrip
 import me.mauromax.rutaconfiable.ui.screens.ProfileStats
 import me.mauromax.rutaconfiable.ui.screens.RegistrationRole
 import me.mauromax.rutaconfiable.ui.screens.Trip
-import me.mauromax.rutaconfiable.ui.screens.TripRepository
 import me.mauromax.rutaconfiable.ui.theme.Outline
 import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
 import me.mauromax.rutaconfiable.ui.theme.StatusAvailableBg

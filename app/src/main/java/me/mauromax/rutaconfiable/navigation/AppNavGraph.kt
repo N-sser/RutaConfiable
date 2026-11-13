@@ -140,7 +140,8 @@ fun AppNavGraph(
                     )
                 },
                 onGoogleSignedIn = { role, verified ->
-                    val destination = if (verified) {
+                    // Los conductores entran siempre; los clientes esperan su verificación.
+                    val destination = if (verified || role == RegistrationRole.DRIVER) {
                         Screen.Profile.createRoute(roleParam(role))
                     } else {
                         Screen.VerificationPending.createRoute(roleParam(role))
@@ -167,8 +168,9 @@ fun AppNavGraph(
                             "driver"
                         }
 
-                    // Cuenta sin aprobar: no entra al perfil, queda en la pantalla de verificación.
-                    val destination = if (verified) {
+                    // Los conductores entran siempre; un cliente sin aprobar queda en la
+                    // pantalla de verificación.
+                    val destination = if (verified || selectedRole == RegistrationRole.DRIVER) {
                         Screen.Profile.createRoute(routeRole)
                     } else {
                         Screen.VerificationPending.createRoute(routeRole)
@@ -265,11 +267,13 @@ fun AppNavGraph(
                     )
                 },
                 onRegistrationSubmitted = { submittedRole ->
-                    navController.navigate(
-                        Screen.VerificationPending.createRoute(
-                            roleParam(submittedRole)
-                        )
-                    ) {
+                    // Conductor: entra directo al perfil. Cliente: espera su verificación.
+                    val destination = if (submittedRole == RegistrationRole.DRIVER) {
+                        Screen.Profile.createRoute(roleParam(submittedRole))
+                    } else {
+                        Screen.VerificationPending.createRoute(roleParam(submittedRole))
+                    }
+                    navController.navigate(destination) {
                         popUpTo(Screen.Registration.route) {
                             inclusive = true
                         }
