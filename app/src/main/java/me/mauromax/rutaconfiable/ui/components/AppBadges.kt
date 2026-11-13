@@ -1,6 +1,9 @@
 package me.mauromax.rutaconfiable.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
@@ -14,7 +17,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.ui.theme.*
+import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+import me.mauromax.rutaconfiable.ui.theme.Secondary
+import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
 
 @Composable
 fun SecurityBadge(modifier: Modifier = Modifier, text: String = "Seguridad Vigente") {

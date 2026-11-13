@@ -11,6 +11,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
+import me.mauromax.rutaconfiable.ui.components.data.TripRepository.trips
 import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
 import java.security.SecureRandom
 
