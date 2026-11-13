@@ -16,7 +16,8 @@ import java.util.Locale
 data class ProfileData(
     val name: String = "Usuario",
     val stats: ProfileStats = ProfileStats(),
-    val trips: List<Trip> = emptyList()
+    val trips: List<Trip> = emptyList(),
+    val bookings: List<Booking> = emptyList()
 )
 
 object ProfileRepository {
@@ -38,7 +39,9 @@ object ProfileRepository {
         return ProfileData(
             name = name,
             stats = ProfileStats(active = upcoming.count { it }),
-            trips = mine.mapIndexed { i, trip -> trip.toProfileTrip(upcoming[i]) }
+            trips = mine.mapIndexed { i, trip -> trip.toProfileTrip(upcoming[i]) },
+            bookings = TripRepository.loadMyBookings(asDriver = true).getOrDefault(emptyList())
+
         )
     }
 

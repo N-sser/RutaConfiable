@@ -18,8 +18,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.withTimeoutOrNull
 import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.components.data.Booking
 import me.mauromax.rutaconfiable.ui.components.data.ProfileData
 import me.mauromax.rutaconfiable.ui.components.data.ProfileRepository
+import me.mauromax.rutaconfiable.ui.components.data.TripRepository
 import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep1Screen
 import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep2Screen
 import me.mauromax.rutaconfiable.ui.screens.HomeScreen
@@ -327,6 +329,7 @@ fun AppNavGraph(
                 userName = profile.name,
                 stats = profile.stats,
                 trips = profile.trips,
+                bookings = profile.bookings,
                 onLogout = {
                     AuthRepository.logout()
                     navController.navigate(Screen.Welcome.route) {
@@ -443,7 +446,12 @@ fun AppNavGraph(
             })
         ) { backStackEntry ->
             val role = parseRole(backStackEntry.arguments?.getString("role"))
+            val bookings by produceState(initialValue = emptyList<Booking>()) {
+                value = TripRepository.loadMyBookings(asDriver = false).getOrDefault(emptyList())
+            }
+
             MyShipmentsScreen(
+                bookings = bookings,
                 onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
                 onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
                 onNavigateToProfile = {
