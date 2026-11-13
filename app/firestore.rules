@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// Reglas de Ruta Confiable.
+// - La verificación de identidad (verified, verificationStatus, ...) SOLO la cambia un administrador.
+// - Un administrador es un usuario con un documento en admins/{uid} (se crea a mano desde la
+//   consola de Firebase; ninguna app puede crearlo).
+// - Solo conductores verificados pueden publicar viajes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function userData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    match /admins/{uid} {
+      // Cada usuario solo puede comprobar si él mismo es administrador.
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Al registrarse, la cuenta nace SIEMPRE sin verificar.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.verified == false
+        && request.resource.data.verificationStatus == 'pending'
+        && request.resource.data.role in ['client', 'driver'];
+
+      allow update: if
+        // El administrador solo puede tocar los campos de verificación.
+        (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['verified', 'verificationStatus', 'rejectionReason',
+                         'verifiedAt', 'reviewedBy']))
+        // El dueño puede editar su perfil, pero no la verificación ni el rol.
+        || (signedIn()
+          && request.auth.uid == uid
+          && !request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['verified', 'verificationStatus', 'rejectionReason',
+                        'verifiedAt', 'reviewedBy', 'role']));
+
+      allow delete: if false;
+    }
+
+    match /trips/{code} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.driverUid == request.auth.uid
+        && userData(request.auth.uid).role == 'driver'
+        && userData(request.auth.uid).verified == true
+        && request.resource.data.driverVerified == true;
+
+      allow update: if signedIn()
+        && resource.data.driverUid == request.auth.uid
+        && request.resource.data.driverUid == resource.data.driverUid
+        && request.resource.data.driverVerified == resource.data.driverVerified;
+
+      allow delete: if signedIn() && resource.data.driverUid == request.auth.uid;
+    }
+  }
+}

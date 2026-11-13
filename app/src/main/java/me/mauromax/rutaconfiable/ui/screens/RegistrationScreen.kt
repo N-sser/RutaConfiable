@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import me.mauromax.rutaconfiable.ui.components.*
-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.data.AuthRepository
 import me.mauromax.rutaconfiable.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date

@@ -19,7 +19,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import me.mauromax.rutaconfiable.ui.components.data.TripRepository
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
 import me.mauromax.rutaconfiable.ui.components.AppSwitch

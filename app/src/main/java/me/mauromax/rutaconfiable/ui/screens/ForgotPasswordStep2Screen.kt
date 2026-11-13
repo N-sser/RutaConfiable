@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.mauromax.rutaconfiable.ui.components.*
-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.data.AuthRepository
 import me.mauromax.rutaconfiable.ui.theme.*
 
 private const val RESEND_COOLDOWN_SECONDS = 60

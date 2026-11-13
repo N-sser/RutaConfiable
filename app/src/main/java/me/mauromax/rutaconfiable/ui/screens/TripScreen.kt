@@ -2,6 +2,8 @@ package me.mauromax.rutaconfiable.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.location.Location
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,6 +23,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -38,13 +41,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.KeyboardType
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.ui.components.data.TripRepository
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.AppCard
 import me.mauromax.rutaconfiable.ui.components.AppSwitch
@@ -52,6 +56,7 @@ import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
 import me.mauromax.rutaconfiable.ui.components.StatusTag
+import me.mauromax.rutaconfiable.ui.data.BookingRepository
 import me.mauromax.rutaconfiable.ui.theme.*
 
 data class AvailableTrip(
@@ -80,7 +85,11 @@ data class AvailableTrip(
     val hasCargo: Boolean = true,
     val hasSeats: Boolean = true,
     val driverUid: String = "",
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    /** El conductor tenía la cuenta aprobada por un administrador al publicar el viaje. */
+    val driverVerified: Boolean = false,
+    /** Teléfono del conductor con indicativo, solo dígitos (vacío en viajes antiguos). */
+    val driverPhone: String = ""
 )
 
 @Composable
@@ -360,7 +369,7 @@ fun TripScreen(
             }
 
             if (selected != null) {
-                TripDetailCard(selected)
+                TripDetailCard(selected, canBook = role == RegistrationRole.CLIENT)
             } else {
                 AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
                     Icon(Icons.Default.Map, null, Modifier.size(32.dp).align(Alignment.CenterHorizontally), tint = Outline)
@@ -391,7 +400,24 @@ fun TripScreen(
 }
 
 @Composable
-private fun TripDetailCard(t: AvailableTrip) {
+private fun TripDetailCard(t: AvailableTrip, canBook: Boolean) {
+    val context = LocalContext.current
+    val hasPhone = t.driverPhone.isNotBlank()
+    var showBooking by remember(t.id) { mutableStateOf(false) }
+    var bookedMessage by remember(t.id) { mutableStateOf<String?>(null) }
+    val soldOut = (!t.hasSeats || t.seatsFree <= 0) && (!t.hasCargo || t.cargoFreeKg <= 0)
+
+    if (showBooking) {
+        BookingDialog(
+            t = t,
+            onDismiss = { showBooking = false },
+            onBooked = { message ->
+                showBooking = false
+                bookedMessage = message
+            }
+        )
+    }
+
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = CardBackground,
@@ -432,14 +458,32 @@ private fun TripDetailCard(t: AvailableTrip) {
                                 Text("${t.rating} · ${t.verifiedTrips} viajes verificados",
                                     fontSize = 11.sp, color = OnSurfaceVariant)
                             }
-                            StatusTag("Conductor Verificado", StatusAvailableBg, StatusAvailable, Icons.Default.Verified)
+                            if (t.driverVerified) {
+                                StatusTag("Conductor Verificado", StatusAvailableBg, StatusAvailable, Icons.Default.Verified)
+                            } else {
+                                StatusTag("Sin verificar", SurfaceMuted, Outline, Icons.Default.Info)
+                            }
                         }
                         Column {
-                            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Default.Call, "Llamar", tint = PrimaryLight)
+                            IconButton(
+                                onClick = { openDialer(context, t.driverPhone) },
+                                enabled = hasPhone,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Default.Call, "Llamar", tint = if (hasPhone) PrimaryLight else Outline)
                             }
-                            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.AutoMirrored.Filled.Chat, "Mensaje", tint = PrimaryLight)
+                            IconButton(
+                                onClick = {
+                                    openWhatsApp(
+                                        context, t.driverPhone,
+                                        "Hola ${t.driver}, te escribo por tu viaje ${t.id} " +
+                                                "(${t.origin} → ${t.destination}) en Ruta Confiable."
+                                    )
+                                },
+                                enabled = hasPhone,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Chat, "Mensaje", tint = if (hasPhone) PrimaryLight else Outline)
                             }
                         }
                     }
@@ -517,12 +561,23 @@ private fun TripDetailCard(t: AvailableTrip) {
                 }
 
                 PrimaryButton(
-                    text = "Reservar cupo o solicitar flete",
-                    onClick = {},
+                    text = when {
+                        !canBook -> "Solo los clientes pueden reservar"
+                        soldOut -> "Sin cupo disponible"
+                        else -> "Reservar cupo o solicitar flete"
+                    },
+                    onClick = { showBooking = true },
+                    enabled = canBook && !soldOut,
                     leadingIcon = Icons.Default.LocalShipping,
                     trailingIcon = null,
                     containerColor = SecondaryContainer
                 )
+                bookedMessage?.let {
+                    Text(
+                        it, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = StatusAvailable,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 Text(
                     "Transacción protegida por Garantía de Entrega Ruta Confiable",
                     fontSize = 10.sp, color = OnSurfaceVariant, textAlign = TextAlign.Center,
@@ -531,6 +586,106 @@ private fun TripDetailCard(t: AvailableTrip) {
             }
         }
     }
+}
+
+/** Abre el marcador del teléfono con el número del conductor (no necesita permisos). */
+private fun openDialer(context: Context, phoneDigits: String) {
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:+$phoneDigits")))
+    }
+}
+
+/** Abre un chat de WhatsApp con el conductor; si no hay WhatsApp, abre el enlace en el navegador. */
+private fun openWhatsApp(context: Context, phoneDigits: String, text: String) {
+    runCatching {
+        val uri = Uri.parse("https://wa.me/$phoneDigits?text=${Uri.encode(text)}")
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+    }
+}
+
+/** Pide cuántos cupos y/o kilos reservar y crea la reserva en Firestore. */
+@Composable
+private fun BookingDialog(
+    t: AvailableTrip,
+    onDismiss: () -> Unit,
+    onBooked: (message: String) -> Unit
+) {
+    val canSeats = t.hasSeats && t.seatsFree > 0
+    val canCargo = t.hasCargo && t.cargoFreeKg > 0
+    var seats by remember { mutableIntStateOf(0) }
+    var cargoText by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var isBooking by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val cargoKg = cargoText.toIntOrNull() ?: 0
+
+    fun confirm() {
+        if (cargoKg > t.cargoFreeKg) {
+            error = "Solo quedan ${t.cargoFreeKg} kg libres."
+            return
+        }
+        error = null
+        isBooking = true
+        scope.launch {
+            BookingRepository.book(t, seats, cargoKg)
+                .onSuccess {
+                    isBooking = false
+                    onBooked("Reserva enviada. El conductor la confirmará pronto.")
+                }
+                .onFailure { e ->
+                    isBooking = false
+                    error = TripRepository.friendlyError(e)
+                }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!isBooking) onDismiss() },
+        title = { Text("Reservar en ${t.id}", fontWeight = FontWeight.Bold, color = PrimaryLight) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (canSeats) {
+                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                        Column {
+                            Text("Cupos", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("${t.seatsFree} libres · ${t.seatPrice} COP c/u", fontSize = 11.sp, color = OnSurfaceVariant)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { if (seats > 0) seats-- }, enabled = !isBooking && seats > 0) {
+                                Icon(Icons.Default.Remove, "Menos cupos")
+                            }
+                            Text("$seats", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            IconButton(onClick = { if (seats < t.seatsFree) seats++ }, enabled = !isBooking && seats < t.seatsFree) {
+                                Icon(Icons.Default.Add, "Más cupos")
+                            }
+                        }
+                    }
+                }
+                if (canCargo) {
+                    OutlinedTextField(
+                        value = cargoText,
+                        onValueChange = { cargoText = it.filter(Char::isDigit).take(6) },
+                        label = { Text("Carga en kg (máx. ${t.cargoFreeKg})") },
+                        supportingText = { Text("${t.cargoPrice} COP") },
+                        singleLine = true,
+                        enabled = !isBooking,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                error?.let { Text(it, fontSize = 12.sp, color = StatusBooked) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { confirm() },
+                enabled = !isBooking && (seats > 0 || cargoKg > 0)
+            ) { Text(if (isBooking) "Reservando..." else "Confirmar reserva") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isBooking) { Text("Cancelar") }
+        }
+    )
 }
 
 @Composable

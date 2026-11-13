@@ -17,13 +17,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import me.mauromax.rutaconfiable.ui.components.*
-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.data.AuthRepository
 import me.mauromax.rutaconfiable.ui.theme.*
 
 @Composable
 fun LoginScreen(
     onBackClick: () -> Unit = {},
-    onLoginSuccess: (role: RegistrationRole) -> Unit = {},
+    /** [verified] = false: la cuenta existe pero un administrador aún no la aprueba. */
+    onLoginSuccess: (role: RegistrationRole, verified: Boolean) -> Unit = { _, _ -> },
     onForgotPasswordClick: () -> Unit = {},
     onRegisterClick: (role: RegistrationRole) -> Unit = {}
 ) {
@@ -53,16 +54,16 @@ fun LoginScreen(
         scope.launch {
             AuthRepository.login(email, password)
                 .onSuccess {
-                    val actualRole = AuthRepository.getRole()
+                    val status = AuthRepository.getAccountStatus()
                     isLoading = false
-                    if (actualRole == selectedKey) {
-                        onLoginSuccess(selectedRole)
+                    if (status != null && status.role == selectedKey) {
+                        onLoginSuccess(selectedRole, status.isVerified)
                     } else {
                         AuthRepository.logout()
-                        errorMessage = if (actualRole == "client") {
-                            "Esta cuenta es de Cliente. Cambia el selector de rol."
-                        } else {
-                            "Esta cuenta es de Conductor. Cambia el selector de rol."
+                        errorMessage = when (status?.role) {
+                            "client" -> "Esta cuenta es de Cliente. Cambia el selector de rol."
+                            "driver" -> "Esta cuenta es de Conductor. Cambia el selector de rol."
+                            else -> "No se pudo leer tu perfil. Revisa tu conexión e intenta de nuevo."
                         }
                     }
                 }

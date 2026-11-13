@@ -11,7 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,10 +37,17 @@ data class ProfileStats(
     val ratingCount: Int = 0
 )
 
+/** Una reserva en el manifiesto: quién, qué reservó y en qué estado está. */
+data class ManifestEntry(val name: String, val detail: String, val status: String)
+
 data class NextTrip(
     val id: String, val leavesIn: String, val from: String, val to: String,
     val departure: String, val arrival: String, val duration: String, val via: String,
-    val inspection: Float, val vehicle: String, val cargo: String, val seats: String
+    /** Qué parte del viaje está reservada (0..1). Null si no aplica (vista del cliente). */
+    val occupancy: Float?,
+    val vehicle: String, val cargo: String, val seats: String,
+    val date: String = "",
+    val entries: List<ManifestEntry> = emptyList()
 )
 
 data class Trip(
@@ -116,7 +123,7 @@ fun ProfileScreen(
             SectionHeader("Próximo Viaje Asignado") {
                 nextTrip?.let { StatusTag(it.leavesIn, StatusPendingBg, StatusPending) }
             }
-            if (nextTrip != null) NextTripCard(nextTrip)
+            if (nextTrip != null) NextTripCard(nextTrip, isDriver)
             else EmptyState(Icons.Default.LocalShipping,
                 if (isDriver) "Aún no tienes viajes asignados." else "Aún no tienes reservas ni envíos.")
 
@@ -182,7 +189,10 @@ private fun StatCard(label: String, value: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun NextTripCard(t: NextTrip) {
+private fun NextTripCard(t: NextTrip, isDriver: Boolean) {
+    var showManifest by remember(t.id) { mutableStateOf(false) }
+    if (showManifest) ManifestDialog(t, isDriver) { showManifest = false }
+
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = CardBackground,
@@ -195,7 +205,7 @@ private fun NextTripCard(t: NextTrip) {
                 Arrangement.SpaceBetween, Alignment.CenterVertically
             ) {
                 Text("ID: ${t.id}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                StatusTag("Confirmado · Seguro", SecondaryContainer, OnSecondaryContainer)
+                StatusTag(if (isDriver) "Publicado" else "Reservado", SecondaryContainer, OnSecondaryContainer)
             }
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
@@ -216,26 +226,83 @@ private fun NextTripCard(t: NextTrip) {
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("Inspección de carga", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text("${(t.inspection * 100).toInt()}% listo", fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold, color = Secondary)
+                    t.occupancy?.let { occupancy ->
+                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                            Text("Ocupación del viaje", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("${(occupancy * 100).toInt()}% reservado", fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold, color = Secondary)
+                        }
+                        LinearProgressIndicator(
+                            progress = { occupancy },
+                            modifier = Modifier.fillMaxWidth().height(6.dp),
+                            color = SecondaryContainer,
+                            trackColor = SurfaceVariant
+                        )
                     }
-                    LinearProgressIndicator(
-                        progress = { t.inspection },
-                        modifier = Modifier.fillMaxWidth().height(6.dp),
-                        color = SecondaryContainer,
-                        trackColor = SurfaceVariant
-                    )
                     Text("Vehículo: ${t.vehicle}", fontSize = 11.sp, color = OnSurfaceVariant)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    InfoBox("Carga reservada", t.cargo, Modifier.weight(1f))
-                    InfoBox("Cupos pasajeros", t.seats, Modifier.weight(1f))
+                    InfoBox(if (isDriver) "Carga reservada" else "Tu carga", t.cargo, Modifier.weight(1f))
+                    InfoBox(if (isDriver) "Cupos reservados" else "Tus cupos", t.seats, Modifier.weight(1f))
                 }
-                PrimaryButton(text = "Ver Manifiesto y Hoja de Ruta", onClick = {})
+                PrimaryButton(text = "Ver Manifiesto y Hoja de Ruta", onClick = { showManifest = true })
             }
         }
+    }
+}
+
+/** Hoja de ruta del viaje y lista de reservas (manifiesto). */
+@Composable
+private fun ManifestDialog(t: NextTrip, isDriver: Boolean, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Manifiesto y Hoja de Ruta", fontWeight = FontWeight.Bold, color = PrimaryLight)
+        },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ManifestLine("Viaje", t.id)
+                ManifestLine("Ruta", "${t.from} → ${t.to}")
+                ManifestLine("Salida", listOf(t.date, t.departure).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "—" })
+                ManifestLine("Vehículo", t.vehicle.ifBlank { "—" })
+                ManifestLine("Carga", t.cargo)
+                ManifestLine("Cupos", t.seats)
+                if (t.duration != "—" || t.via != "—") {
+                    ManifestLine("Recorrido", listOf(t.via, t.duration).filter { it != "—" }.joinToString(" · "))
+                }
+
+                HorizontalDivider(color = OutlineVariant)
+                Text(
+                    if (isDriver) "Reservas (${t.entries.size})" else "Tu reserva",
+                    fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight
+                )
+                if (t.entries.isEmpty()) {
+                    Text("Aún no hay reservas para este viaje.", fontSize = 12.sp, color = OnSurfaceVariant)
+                } else {
+                    t.entries.forEach { e ->
+                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(e.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(e.detail, fontSize = 11.sp, color = OnSurfaceVariant)
+                            }
+                            StatusTag(e.status, StatusPendingBg, StatusPending)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } }
+    )
+}
+
+@Composable
+private fun ManifestLine(label: String, value: String) {
+    Column {
+        Text(label.uppercase(), fontSize = 10.sp, color = OnSurfaceVariant)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = PrimaryLight)
     }
 }
 

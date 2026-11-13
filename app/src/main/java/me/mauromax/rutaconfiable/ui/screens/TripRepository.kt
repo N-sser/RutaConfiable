@@ -1,4 +1,4 @@
-package me.mauromax.rutaconfiable.ui.components.data
+package me.mauromax.rutaconfiable.ui.screens
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -11,7 +11,6 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
-import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
 import java.security.SecureRandom
 
 /** Error con un mensaje ya listo para mostrar al usuario. */
@@ -77,9 +76,23 @@ object TripRepository {
         val uid = auth.currentUser?.uid
             ?: throw TripException("Inicia sesión para publicar un viaje.")
 
-        val driverName = runCatching {
-            db.collection("users").document(uid).get().await().getString("name")
-        }.getOrNull()?.takeIf { it.isNotBlank() } ?: trip.driver
+        // Solo publican conductores con la cuenta aprobada por un administrador.
+        // (Firestore lo exige también en firestore.rules; esto da un mensaje claro.)
+        val userDoc = db.collection("users").document(uid).get().await()
+        if (userDoc.getString("role") != "driver") {
+            throw TripException("Solo los conductores pueden publicar viajes.")
+        }
+        if (userDoc.getBoolean("verified") != true) {
+            throw TripException(
+                "Tu cuenta aún no está verificada. Podrás publicar viajes cuando sea aprobada."
+            )
+        }
+        val driverName = userDoc.getString("name")?.takeIf { it.isNotBlank() } ?: trip.driver
+        // Teléfono con indicativo, solo dígitos (ej. 573104567890), para Llamar y WhatsApp.
+        val phoneDigits = userDoc.getString("phone").orEmpty().filter { it.isDigit() }
+        val countryDigits = userDoc.getString("phoneCountryCode").orEmpty().filter { it.isDigit() }
+            .ifEmpty { "57" }
+        val driverPhone = if (phoneDigits.isEmpty()) "" else countryDigits + phoneDigits
 
         repeat(5) {
             val code = newCode()
@@ -89,11 +102,13 @@ object TripRepository {
                 if (tx.get(ref).exists()) {
                     false
                 } else {
-                    tx.set(ref, trip.toMap(uid, driverName))
+                    tx.set(ref, trip.toMap(uid, driverName, driverVerified = true, driverPhone = driverPhone))
                     true
                 }
             }.await()
-            if (created) return@runCatching trip.copy(id = code, driver = driverName)
+            if (created) return@runCatching trip.copy(
+                id = code, driver = driverName, driverVerified = true, driverPhone = driverPhone
+            )
         }
         throw TripException("No se pudo generar el código del viaje. Intenta de nuevo.")
     }
@@ -124,8 +139,15 @@ object TripRepository {
         CharArray(CODE_LENGTH) { CODE_ALPHABET[random.nextInt(CODE_ALPHABET.length)] }
     )
 
-    private fun AvailableTrip.toMap(driverUid: String, driverName: String): Map<String, Any> = mapOf(
+    private fun AvailableTrip.toMap(
+        driverUid: String,
+        driverName: String,
+        driverVerified: Boolean,
+        driverPhone: String
+    ): Map<String, Any> = mapOf(
         "driverUid" to driverUid,
+        "driverPhone" to driverPhone,
+        "driverVerified" to driverVerified,
         "driver" to driverName,
         "departure" to departure,
         "rating" to rating,
@@ -179,7 +201,9 @@ object TripRepository {
             hasCargo = getBoolean("hasCargo") ?: true,
             hasSeats = getBoolean("hasSeats") ?: true,
             driverUid = getString("driverUid").orEmpty(),
-            createdAt = getLong("createdAt") ?: 0L
+            createdAt = getLong("createdAt") ?: 0L,
+            driverVerified = getBoolean("driverVerified") ?: false,
+            driverPhone = getString("driverPhone").orEmpty()
         )
     }.getOrNull()
 }
