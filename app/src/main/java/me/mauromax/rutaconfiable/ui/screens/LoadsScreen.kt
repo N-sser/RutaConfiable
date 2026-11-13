@@ -2,14 +2,51 @@ package me.mauromax.rutaconfiable.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Publish
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -18,14 +55,23 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.ui.components.data.TripRepository
+import kotlinx.coroutines.launch
 import me.mauromax.rutaconfiable.ui.components.AppBottomBar
 import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
 import me.mauromax.rutaconfiable.ui.components.AppSwitch
 import me.mauromax.rutaconfiable.ui.components.CardSectionContainer
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
-import me.mauromax.rutaconfiable.ui.theme.*
+import me.mauromax.rutaconfiable.ui.components.data.TripRepository
+import me.mauromax.rutaconfiable.ui.theme.Background
+import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
+import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
+import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+import me.mauromax.rutaconfiable.ui.theme.Secondary
+import me.mauromax.rutaconfiable.ui.theme.SecondaryContainer
+import me.mauromax.rutaconfiable.ui.theme.SecondarySoft
+import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -37,6 +83,7 @@ fun LoadsScreen(
     role: RegistrationRole = RegistrationRole.DRIVER,
     driverName: String = "Conductor",
     onPublished: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
     onNavigateToTrips: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {}
 ) {
@@ -57,6 +104,8 @@ fun LoadsScreen(
     var seatPrice by remember { mutableStateOf("") }
 
     var error by remember { mutableStateOf<String?>(null) }
+    var isPublishing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     fun validate(): String? = when {
         origin.isBlank() || destination.isBlank() -> "Indica origen y destino."
@@ -75,36 +124,45 @@ fun LoadsScreen(
             return
         }
         error = null
+        isPublishing = true
         val kg = cargoKg.toIntOrNull() ?: 0
-        TripRepository.publish(
-            AvailableTrip(
-                id = TripRepository.nextId(),
-                departure = time,
-                driver = driverName,
-                rating = 0.0,
-                verifiedTrips = 0,
-                vehicle = vehicleName.trim(),
-                vehicleDetail = if (hasCargo) "Carga y flete" else "Solo pasajeros",
-                plate = plate.trim().uppercase(),
-                cargoFreeKg = if (hasCargo) kg else 0,
-                cargoTotalKg = if (hasCargo) maxOf(kg, 1) else 1,
-                cargoNote = "Espacio de carga",
-                seatsFree = if (hasSeats) seats else 0,
-                seatsTotal = if (hasSeats) seats else 0,
-                seatsNote = "Cupo a bordo",
-                cargoPrice = if (hasCargo) formatCop(cargoPrice) else "-",
-                seatPrice = if (hasSeats) formatCop(seatPrice) else "-",
-                distance = "—",
-                duration = "—",
-                road = "${origin.trim()} → ${destination.trim()}",
-                origin = origin.trim(),
-                destination = destination.trim(),
-                date = date,
-                hasCargo = hasCargo,
-                hasSeats = hasSeats
-            )
+        val newTrip = AvailableTrip(
+            id = "", // el código lo asigna TripRepository al guardar
+            departure = time,
+            driver = driverName,
+            rating = 0.0,
+            verifiedTrips = 0,
+            vehicle = vehicleName.trim(),
+            vehicleDetail = if (hasCargo) "Carga y flete" else "Solo pasajeros",
+            plate = plate.trim().uppercase(),
+            cargoFreeKg = if (hasCargo) kg else 0,
+            cargoTotalKg = if (hasCargo) maxOf(kg, 1) else 1,
+            cargoNote = "Espacio de carga",
+            seatsFree = if (hasSeats) seats else 0,
+            seatsTotal = if (hasSeats) seats else 0,
+            seatsNote = "Cupo a bordo",
+            cargoPrice = if (hasCargo) formatCop(cargoPrice) else "-",
+            seatPrice = if (hasSeats) formatCop(seatPrice) else "-",
+            distance = "—",
+            duration = "—",
+            road = "${origin.trim()} → ${destination.trim()}",
+            origin = origin.trim(),
+            destination = destination.trim(),
+            date = date,
+            hasCargo = hasCargo,
+            hasSeats = hasSeats
         )
-        onPublished()
+        scope.launch {
+            TripRepository.publish(newTrip)
+                .onSuccess {
+                    isPublishing = false
+                    onPublished()
+                }
+                .onFailure { e ->
+                    isPublishing = false
+                    error = TripRepository.friendlyError(e)
+                }
+        }
     }
 
     Scaffold(
@@ -113,6 +171,7 @@ fun LoadsScreen(
         bottomBar = {
             AppBottomBar(selectedIndex = 1) {
                 when (it) {
+                    0 -> onNavigateToHome()
                     2 -> onNavigateToTrips()
                     3 -> onNavigateToProfile()
                 }
@@ -204,8 +263,9 @@ fun LoadsScreen(
             }
 
             PrimaryButton(
-                text = "Publicar viaje",
+                text = if (isPublishing) "Publicando..." else "Publicar viaje",
                 onClick = { publish() },
+                enabled = !isPublishing,
                 leadingIcon = Icons.Default.Publish,
                 trailingIcon = null,
                 containerColor = SecondaryContainer

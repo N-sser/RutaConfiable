@@ -1,7 +1,14 @@
 package me.mauromax.rutaconfiable.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -21,7 +28,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.ui.theme.*
+import me.mauromax.rutaconfiable.ui.theme.CardBackground
+import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
+import me.mauromax.rutaconfiable.ui.theme.Outline
+import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
+import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+import me.mauromax.rutaconfiable.ui.theme.SecondaryContainer
+import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
 
 // Piezas pequeñas que se repetían en casi todas las pantallas.
 

@@ -1,19 +1,48 @@
 package me.mauromax.rutaconfiable.navigation
 
+import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import me.mauromax.rutaconfiable.ui.screens.*
+import kotlinx.coroutines.withTimeoutOrNull
+import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.components.data.ProfileData
+import me.mauromax.rutaconfiable.ui.components.data.ProfileRepository
+import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep1Screen
+import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep2Screen
+import me.mauromax.rutaconfiable.ui.screens.HomeScreen
+import me.mauromax.rutaconfiable.ui.screens.LoadsScreen
+import me.mauromax.rutaconfiable.ui.screens.LoginScreen
+import me.mauromax.rutaconfiable.ui.screens.MyShipmentsScreen
+import me.mauromax.rutaconfiable.ui.screens.PaymentMethodsScreen
+import me.mauromax.rutaconfiable.ui.screens.ProfileScreen
+import me.mauromax.rutaconfiable.ui.screens.RegistrationRole
+import me.mauromax.rutaconfiable.ui.screens.RegistrationScreen
+import me.mauromax.rutaconfiable.ui.screens.TripScreen
+import me.mauromax.rutaconfiable.ui.screens.VerificationPendingScreen
+import me.mauromax.rutaconfiable.ui.screens.WelcomeScreen
+import me.mauromax.rutaconfiable.ui.theme.Background
+import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
 
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object Login : Screen("login")
     object ForgotPasswordStep1 : Screen("forgot_password_step_1")
-    object ForgotPasswordStep2 : Screen("forgot_password_step_2")
+    object ForgotPasswordStep2 : Screen("forgot_password_step_2/{email}") {
+        fun createRoute(email: String) = "forgot_password_step_2/${Uri.encode(email)}"
+    }
 
     object PaymentMethods : Screen("payment_methods")
 
@@ -37,6 +66,14 @@ sealed class Screen(val route: String) {
     object Loads : Screen("loads/{role}") {
         fun createRoute(role: String = "driver") = "loads/$role"
     }
+
+    object Home : Screen("home/{role}") {
+        fun createRoute(role: String = "driver") = "home/$role"
+    }
+
+    object Shipments : Screen("shipments/{role}") {
+        fun createRoute(role: String = "driver") = "shipments/$role"
+    }
 }
 
 private fun roleParam(role: RegistrationRole) =
@@ -56,13 +93,45 @@ private fun NavHostController.goTab(route: String) {
     }
 }
 
+private fun NavHostController.goCargas(role: RegistrationRole) = goTab(
+    if (role == RegistrationRole.CLIENT) Screen.Shipments.createRoute("client")
+    else Screen.Loads.createRoute("driver")
+)
+
 @Composable
 fun AppNavGraph(
     navController: NavHostController = rememberNavController()
 ) {
+    // Pantalla inicial según la sesión guardada por Firebase (null = todavía resolviendo).
+    val resolvedStart by produceState<String?>(initialValue = null) {
+        value = if (!AuthRepository.isLoggedIn) {
+            Screen.Welcome.route
+        } else {
+            when (withTimeoutOrNull(8_000) { AuthRepository.getRole() }) {
+                "client" -> Screen.Profile.createRoute("client")
+                "driver" -> Screen.Profile.createRoute("driver")
+                // Sin rol o sin conexión: se pide iniciar sesión, sin cerrar la sesión guardada.
+                else -> Screen.Welcome.route
+            }
+        }
+    }
+
+    val startRoute = resolvedStart
+    if (startRoute == null) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Background),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = PrimaryLight)
+        }
+        return
+    }
+
     NavHost(
         navController = navController,
-        startDestination = Screen.Welcome.route
+        startDestination = startRoute
     ) {
 
         composable(route = Screen.Welcome.route) {
@@ -124,20 +193,29 @@ fun AppNavGraph(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onSendCodeSuccess = {
+                onLinkSent = { email ->
                     navController.navigate(
-                        Screen.ForgotPasswordStep2.route
+                        Screen.ForgotPasswordStep2.createRoute(email)
                     )
                 }
             )
         }
 
-        composable(route = Screen.ForgotPasswordStep2.route) {
+        composable(
+            route = Screen.ForgotPasswordStep2.route,
+            arguments = listOf(
+                navArgument("email") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
             ForgotPasswordStep2Screen(
+                email = backStackEntry.arguments?.getString("email").orEmpty(),
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onResetPasswordSuccess = {
+                onBackToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Login.route) {
                             inclusive = true
@@ -218,6 +296,7 @@ fun AppNavGraph(
                     )
                 },
                 onResetRegistration = {
+                    AuthRepository.logout()
                     navController.navigate(Screen.Welcome.route) {
                         popUpTo(0)
                     }
@@ -239,23 +318,31 @@ fun AppNavGraph(
                 backStackEntry.arguments?.getString("role")
             )
 
+            val profile by produceState(initialValue = ProfileData(), role) {
+                value = ProfileRepository.load(role)
+            }
+
             ProfileScreen(
                 role = role,
+                userName = profile.name,
+                stats = profile.stats,
+                trips = profile.trips,
                 onLogout = {
+                    AuthRepository.logout()
                     navController.navigate(Screen.Welcome.route) {
                         popUpTo(0)
                     }
+                },
+                onNavigateToHome = {
+                    navController.goTab(Screen.Home.createRoute(roleParam(role)))
                 },
                 onNavigateToTrips = {
                     navController.goTab(
                         Screen.Trips.createRoute(roleParam(role))
                     )
                 },
-                onNavigateToLoads = {
-                    navController.goTab(
-                        Screen.Loads.createRoute(roleParam(role))
-                    )
-                }
+                onNavigateToLoads = { navController.goCargas(role) }
+
             )
         }
 
@@ -276,10 +363,10 @@ fun AppNavGraph(
             TripScreen(
                 role = role,
                 onNavigateToLoads = {
-                    navController.goTab(
-                        Screen.Loads.createRoute(roleParam(role))
-                    )
+                    navController.goCargas(role)
                 },
+                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
+
                 onNavigateToProfile = {
                     navController.goTab(
                         Screen.Profile.createRoute(roleParam(role))
@@ -309,6 +396,7 @@ fun AppNavGraph(
                         Screen.Trips.createRoute(roleParam(role))
                     )
                 },
+                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
                 onNavigateToTrips = {
                     navController.goTab(
                         Screen.Trips.createRoute(roleParam(role))
@@ -317,6 +405,54 @@ fun AppNavGraph(
                 onNavigateToProfile = {
                     navController.goTab(
                         Screen.Profile.createRoute(roleParam(role))
+                    )
+                }
+            )
+        }
+        composable(
+            route = Screen.Home.route,
+            arguments = listOf(navArgument("role") {
+                type = NavType.StringType; defaultValue = "driver"
+            })
+        ) { backStackEntry ->
+            val role = parseRole(backStackEntry.arguments?.getString("role"))
+            val userName by produceState(initialValue = "Usuario") {
+                value = AuthRepository.getName() ?: "Usuario"
+            }
+            HomeScreen(
+                role = role,
+                userName = userName,
+                onNavigateToLoads = { navController.goCargas(role) },
+                onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
+                onNavigateToProfile = {
+                    navController.goTab(
+                        Screen.Profile.createRoute(
+                            roleParam(
+                                role
+                            )
+                        )
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.Shipments.route,
+            arguments = listOf(navArgument("role") {
+                type = NavType.StringType; defaultValue = "client"
+            })
+        ) { backStackEntry ->
+            val role = parseRole(backStackEntry.arguments?.getString("role"))
+            MyShipmentsScreen(
+                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
+                onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
+                onNavigateToProfile = {
+                    navController.goTab(
+                        Screen.Profile.createRoute(
+                            roleParam(
+                                role
+                            )
+                        )
                     )
                 }
             )

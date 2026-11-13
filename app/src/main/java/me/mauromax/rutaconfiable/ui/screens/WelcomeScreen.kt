@@ -2,11 +2,18 @@ package me.mauromax.rutaconfiable.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AltRoute
@@ -14,7 +21,11 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,8 +45,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.mauromax.rutaconfiable.R
-import me.mauromax.rutaconfiable.ui.components.*
-import me.mauromax.rutaconfiable.ui.theme.*
+import me.mauromax.rutaconfiable.ui.components.BenefitCard
+import me.mauromax.rutaconfiable.ui.components.BodyText
+import me.mauromax.rutaconfiable.ui.components.PillTag
+import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+import me.mauromax.rutaconfiable.ui.components.ScreenColumn
+import me.mauromax.rutaconfiable.ui.components.ScreenTitle
+import me.mauromax.rutaconfiable.ui.components.SecondaryOutlinedButton
+import me.mauromax.rutaconfiable.ui.components.WelcomeAppTopBar
+import me.mauromax.rutaconfiable.ui.theme.Background
+import me.mauromax.rutaconfiable.ui.theme.CardBackground
+import me.mauromax.rutaconfiable.ui.theme.Outline
+import me.mauromax.rutaconfiable.ui.theme.PrimaryDark
+import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+import me.mauromax.rutaconfiable.ui.theme.Secondary
+import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
 
 private data class BenefitInfo(
     val title: String,
@@ -93,11 +118,20 @@ fun WelcomeScreen(
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFCBD5E1))
+                    .background(PrimaryDark)
             ) {
                 Image(
-                    painterResource(R.drawable.ic_launcher_background), null,
-                    Modifier.fillMaxSize(), contentScale = ContentScale.Crop
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+
+                // Dark overlay tint for visual depth
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0x22000000))
                 )
                 Box(Modifier.fillMaxSize().background(Color(0x22000000))) // sombra suave
 
@@ -145,23 +179,36 @@ fun WelcomeScreen(
 private fun BenefitInfoSheet(info: BenefitInfo, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Background) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(info.icon, null, Modifier.size(28.dp), tint = Secondary)
+                Icon(info.icon, null, tint = Secondary, modifier = Modifier.size(28.dp))
                 Spacer(Modifier.width(10.dp))
-                ScreenTitle(info.title, 22.sp)
+                Text(
+                    text = info.title,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryLight,
+                    fontFamily = FontFamily.Serif
+                )
             }
-            Text(info.description, fontSize = 14.sp, color = OnSurfaceVariant, lineHeight = 20.sp)
+            Text(info.description, fontSize = 14.sp, color = Color(0xFF44474D), lineHeight = 20.sp)
             info.points.forEach { point ->
                 Row(verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp), tint = StatusAvailable)
+                    Icon(
+                        Icons.Default.CheckCircle, null,
+                        tint = StatusAvailable,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text(point, fontSize = 13.sp, color = PrimaryLight, lineHeight = 18.sp)
                 }
             }
-            PrimaryButton("Entendido", onDismiss, trailingIcon = null)
+            PrimaryButton(text = "Entendido", onClick = onDismiss, trailingIcon = null)
         }
     }
 }

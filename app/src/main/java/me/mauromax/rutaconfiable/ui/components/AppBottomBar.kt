@@ -12,7 +12,9 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.ui.theme.*
+import me.mauromax.rutaconfiable.ui.theme.CardBackground
+import me.mauromax.rutaconfiable.ui.theme.Secondary
+import me.mauromax.rutaconfiable.ui.theme.SecondaryContainer
 
 /** Índices: 0 Inicio, 1 Cargas, 2 Viajes, 3 Perfil. */
 @Composable
