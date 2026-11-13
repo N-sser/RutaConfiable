@@ -25,6 +25,7 @@ import me.mauromax.rutaconfiable.ui.components.AppSwitch
 import me.mauromax.rutaconfiable.ui.components.CardSectionContainer
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+import me.mauromax.rutaconfiable.ui.data.TripRepository
 import me.mauromax.rutaconfiable.ui.theme.*
 import java.text.NumberFormat
 import java.text.SimpleDateFormat

@@ -1,4 +1,4 @@
-package me.mauromax.rutaconfiable.ui.screens
+package me.mauromax.rutaconfiable.ui.data
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -11,6 +11,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
+import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
 import java.security.SecureRandom
 
 /** Error con un mensaje ya listo para mostrar al usuario. */
@@ -76,17 +77,13 @@ object TripRepository {
         val uid = auth.currentUser?.uid
             ?: throw TripException("Inicia sesión para publicar un viaje.")
 
-        // Solo publican conductores con la cuenta aprobada por un administrador.
-        // (Firestore lo exige también en firestore.rules; esto da un mensaje claro.)
+        // Publican todos los conductores, estén verificados o no (firestore.rules lo permite).
+        // El viaje guarda si el conductor está verificado para mostrar la insignia correcta.
         val userDoc = db.collection("users").document(uid).get().await()
         if (userDoc.getString("role") != "driver") {
             throw TripException("Solo los conductores pueden publicar viajes.")
         }
-        if (userDoc.getBoolean("verified") != true) {
-            throw TripException(
-                "Tu cuenta aún no está verificada. Podrás publicar viajes cuando sea aprobada."
-            )
-        }
+        val isVerified = userDoc.getBoolean("verified") == true
         val driverName = userDoc.getString("name")?.takeIf { it.isNotBlank() } ?: trip.driver
         // Teléfono con indicativo, solo dígitos (ej. 573104567890), para Llamar y WhatsApp.
         val phoneDigits = userDoc.getString("phone").orEmpty().filter { it.isDigit() }
@@ -102,12 +99,12 @@ object TripRepository {
                 if (tx.get(ref).exists()) {
                     false
                 } else {
-                    tx.set(ref, trip.toMap(uid, driverName, driverVerified = true, driverPhone = driverPhone))
+                    tx.set(ref, trip.toMap(uid, driverName, driverVerified = isVerified, driverPhone = driverPhone))
                     true
                 }
             }.await()
             if (created) return@runCatching trip.copy(
-                id = code, driver = driverName, driverVerified = true, driverPhone = driverPhone
+                id = code, driver = driverName, driverVerified = isVerified, driverPhone = driverPhone
             )
         }
         throw TripException("No se pudo generar el código del viaje. Intenta de nuevo.")

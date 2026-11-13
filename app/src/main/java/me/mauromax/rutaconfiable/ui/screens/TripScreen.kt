@@ -57,6 +57,7 @@ import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
 import me.mauromax.rutaconfiable.ui.components.StatusTag
 import me.mauromax.rutaconfiable.ui.data.BookingRepository
+import me.mauromax.rutaconfiable.ui.data.TripRepository
 import me.mauromax.rutaconfiable.ui.theme.*
 
 data class AvailableTrip(
