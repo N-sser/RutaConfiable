@@ -5,7 +5,6 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
-import me.mauromax.rutaconfiable.ui.screens.TripException
 
 /** Una reserva de cupos y/o carga en un viaje. [status]: "pending", "confirmed", "rejected"... */
 data class Booking(
@@ -42,7 +41,7 @@ object BookingRepository {
     /**
      * Reserva [seats] cupos y/o [cargoKg] kg de carga en [trip] para el cliente con sesión.
      * Devuelve el id de la reserva. Los errores traen un mensaje listo para mostrar
-     * ([me.mauromax.rutaconfiable.ui.screens.TripException]); para el resto usa [me.mauromax.rutaconfiable.ui.screens.TripRepository.friendlyError].
+     * ([TripException]); para el resto usa [TripRepository.friendlyError].
      */
     suspend fun book(trip: AvailableTrip, seats: Int, cargoKg: Int): Result<String> = runCatching {
         val uid = auth.currentUser?.uid
