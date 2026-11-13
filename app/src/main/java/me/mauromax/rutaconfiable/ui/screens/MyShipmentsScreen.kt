@@ -22,7 +22,7 @@ import me.mauromax.rutaconfiable.ui.components.BodyText
 import me.mauromax.rutaconfiable.ui.components.PrimaryButton
 import me.mauromax.rutaconfiable.ui.components.ScreenTitle
 import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
-import me.mauromax.rutaconfiable.ui.components.data.Booking
+import me.mauromax.rutaconfiable.ui.data.Booking
 import me.mauromax.rutaconfiable.ui.theme.*
 
 /** "Cargas" del cliente: por ahora solo el estado vacío; luego mostrará sus reservas. */
@@ -77,23 +77,29 @@ fun MyShipmentsScreen(
                     )
                 }
             } else {
-                bookings.forEach { BookingCard(it, showClient = false) }
+                bookings.forEach { BookingCard(it) }
             }
         }
     }
 }
 
-/** Tarjeta de una reserva. El conductor ve quién reservó; el cliente ve solo lo suyo. */
+/** Tarjeta de una reserva del cliente: ruta, fecha, lo reservado y su estado. */
 @Composable
-fun BookingCard(b: Booking, showClient: Boolean) {
-    val amount = if (b.kind == "seat") "${b.quantity} cupo(s)" else "${b.quantity} kg de flete"
+fun BookingCard(b: Booking) {
+    val amount = listOfNotNull(
+        if (b.seats > 0) "${b.seats} cupo(s)" else null,
+        if (b.cargoKg > 0) "${b.cargoKg} kg de flete" else null
+    ).joinToString(" · ")
     AppCard(Modifier.fillMaxWidth(), spacing = 4.dp) {
-        Text(b.route, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
         Text(
-            if (showClient) "${b.clientName} · $amount" else amount,
-            fontSize = 12.sp, color = OnSurfaceVariant
+            "${b.origin} → ${b.destination}",
+            fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryLight
         )
-        if (b.date.isNotBlank()) Text(b.date, fontSize = 11.sp, color = OnSurfaceVariant)
+        Text(amount, fontSize = 12.sp, color = OnSurfaceVariant)
+        Text(
+            listOf(b.date, b.departure).filter { it.isNotBlank() }.joinToString(" · "),
+            fontSize = 11.sp, color = OnSurfaceVariant
+        )
     }
 }
 

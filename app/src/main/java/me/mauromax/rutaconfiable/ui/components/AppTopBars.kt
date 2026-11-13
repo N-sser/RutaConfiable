@@ -1,27 +1,17 @@
 package me.mauromax.rutaconfiable.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,10 +21,50 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
+import me.mauromax.rutaconfiable.ui.theme.*
 
-/** Barra superior: fondo + fila con el contenido a izquierda y derecha. */
+private const val SUPPORT_EMAIL = "soporte@rutaconfiable.com"
+
+@Composable
+private fun HelpDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ayuda", fontWeight = FontWeight.Bold, color = PrimaryLight) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Verificación: un administrador revisa tu cuenta antes de activarla. " +
+                            "La pantalla de verificación avanza sola cuando te aprueban.",
+                    fontSize = 13.sp
+                )
+                Text(
+                    "Reservas: elige un viaje, pulsa \"Reservar cupo o solicitar flete\" " +
+                            "e indica cuántos cupos o kilos necesitas.",
+                    fontSize = 13.sp
+                )
+                Text(
+                    "Contraseña: si no puedes entrar, usa \"¿Olvidaste tu contraseña?\" en el inicio de sesión.",
+                    fontSize = 13.sp
+                )
+                Text("¿Algo más? Escríbenos a $SUPPORT_EMAIL", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                runCatching {
+                    context.startActivity(
+                        Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL"))
+                            .putExtra(Intent.EXTRA_SUBJECT, "Ayuda con Ruta Confiable")
+                    )
+                }
+                onDismiss()
+            }) { Text("Escribir a soporte") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } }
+    )
+}
+
 @Composable
 private fun TopBarRow(horizontal: Dp, vertical: Dp, content: @Composable RowScope.() -> Unit) {
     Surface(
@@ -54,7 +84,6 @@ private fun TopBarRow(horizontal: Dp, vertical: Dp, content: @Composable RowScop
     }
 }
 
-/** Icono del camión + nombre de la app. */
 @Composable
 private fun Logo(size: Dp, textSize: TextUnit) {
     Surface(Modifier.size(size), shape = RoundedCornerShape(8.dp), color = PrimaryLight) {
@@ -112,8 +141,10 @@ fun StandardAppTopBar(
             }
 
             if (showHelpIcon) {
+                var showHelp by remember { mutableStateOf(false) }
+                if (showHelp) HelpDialog { showHelp = false }
                 Spacer(Modifier.width(6.dp))
-                IconButton(onClick = { }) {
+                IconButton(onClick = { showHelp = true }) {
                     Icon(Icons.Default.HelpOutline, "Ayuda", tint = PrimaryLight)
                 }
             }

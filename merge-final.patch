@@ -1,0 +1,3965 @@
+diff --git a/.idea/deploymentTargetSelector.xml b/.idea/deploymentTargetSelector.xml
+index b7bedae..5a65918 100644
+--- a/.idea/deploymentTargetSelector.xml
++++ b/.idea/deploymentTargetSelector.xml
+@@ -4,14 +4,22 @@
+     <selectionStates>
+       <SelectionState runConfigName="app">
+         <option name="selectionMode" value="DROPDOWN" />
+-        <DropdownSelection timestamp="2026-11-12T21:41:50.245534500Z">
++        <DropdownSelection timestamp="2026-11-13T02:19:53.548483300Z">
+           <Target type="DEFAULT_BOOT">
+             <handle>
+-              <DeviceId pluginId="PhysicalDevice" identifier="serial=ZY22JSBK3M" />
++              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\Lenovo\.android\avd\Pixel_10a.avd" />
+             </handle>
+           </Target>
+         </DropdownSelection>
+-        <DialogSelection />
++        <DialogSelection>
++          <targets>
++            <Target type="DEFAULT_BOOT">
++              <handle>
++                <DeviceId pluginId="PhysicalDevice" identifier="serial=ZY22JSBK3M" />
++              </handle>
++            </Target>
++          </targets>
++        </DialogSelection>
+       </SelectionState>
+     </selectionStates>
+   </component>
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index b1951be..1f29408 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -45,6 +45,11 @@ dependencies {
+     implementation("com.google.firebase:firebase-auth")
+     implementation("com.google.firebase:firebase-firestore")
+ 
++    // Iniciar sesión con Google (Credential Manager + ID de Google)
++    implementation("androidx.credentials:credentials:1.5.0")
++    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
++    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
++
+     // AndroidX Compose
+     implementation(platform(libs.androidx.compose.bom))
+     implementation(libs.androidx.activity.compose)
+diff --git a/app/firestore.rules b/app/firestore.rules
+new file mode 100644
+index 0000000..3edd74b
+--- /dev/null
++++ b/app/firestore.rules
+@@ -0,0 +1,103 @@
++rules_version = '2';
++
++// Reglas de Ruta Confiable.
++// - La verificación de identidad (verified, verificationStatus, ...) SOLO la cambia un administrador.
++// - Un administrador es un usuario con un documento en admins/{uid} (se crea a mano desde la
++//   consola de Firebase; ninguna app puede crearlo).
++// - Solo conductores verificados pueden publicar viajes y solo clientes verificados reservan.
++service cloud.firestore {
++  match /databases/{database}/documents {
++
++    function signedIn() {
++      return request.auth != null;
++    }
++
++    function isAdmin() {
++      return signedIn()
++        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
++    }
++
++    function userData(uid) {
++      return get(/databases/$(database)/documents/users/$(uid)).data;
++    }
++
++    match /admins/{uid} {
++      // Cada usuario solo puede comprobar si él mismo es administrador.
++      allow read: if signedIn() && request.auth.uid == uid;
++      allow write: if false;
++    }
++
++    match /users/{uid} {
++      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
++
++      // Al registrarse, la cuenta nace SIEMPRE sin verificar.
++      allow create: if signedIn()
++        && request.auth.uid == uid
++        && request.resource.data.verified == false
++        && request.resource.data.verificationStatus == 'pending'
++        && request.resource.data.role in ['client', 'driver'];
++
++      allow update: if
++        // El administrador solo puede tocar los campos de verificación.
++        (isAdmin()
++          && request.resource.data.diff(resource.data).affectedKeys()
++               .hasOnly(['verified', 'verificationStatus', 'rejectionReason',
++                         'verifiedAt', 'reviewedBy']))
++        // El dueño puede editar su perfil, pero no la verificación ni el rol.
++        || (signedIn()
++          && request.auth.uid == uid
++          && !request.resource.data.diff(resource.data).affectedKeys()
++               .hasAny(['verified', 'verificationStatus', 'rejectionReason',
++                        'verifiedAt', 'reviewedBy', 'role']));
++
++      allow delete: if false;
++    }
++
++    match /trips/{code} {
++      allow read: if signedIn();
++
++      allow create: if signedIn()
++        && request.resource.data.driverUid == request.auth.uid
++        && userData(request.auth.uid).role == 'driver'
++        && userData(request.auth.uid).verified == true
++        && request.resource.data.driverVerified == true;
++
++      allow update: if signedIn() && (
++        // El conductor edita su propio viaje (sin cambiar dueño ni verificación).
++        (resource.data.driverUid == request.auth.uid
++          && request.resource.data.driverUid == resource.data.driverUid
++          && request.resource.data.driverVerified == resource.data.driverVerified)
++        // Un cliente solo puede BAJAR cupos o kilos libres, y solo si en la misma operación
++        // crea su reserva "<códigoViaje>_<uidCliente>" (así no se pueden restar a escondidas).
++        || (request.resource.data.diff(resource.data).affectedKeys()
++              .hasOnly(['seatsFree', 'cargoFreeKg'])
++            && request.resource.data.seatsFree >= 0
++            && request.resource.data.cargoFreeKg >= 0
++            && request.resource.data.seatsFree <= resource.data.seatsFree
++            && request.resource.data.cargoFreeKg <= resource.data.cargoFreeKg
++            && !exists(/databases/$(database)/documents/bookings/$(code + '_' + request.auth.uid))
++            && existsAfter(/databases/$(database)/documents/bookings/$(code + '_' + request.auth.uid)))
++      );
++
++      allow delete: if signedIn() && resource.data.driverUid == request.auth.uid;
++    }
++
++    // Reservas: las crea un cliente verificado (id "<códigoViaje>_<uidCliente>", una por viaje).
++    // Las leen el cliente que reservó y el conductor del viaje. Nadie las edita ni borra.
++    match /bookings/{bookingId} {
++      allow read: if signedIn() && (
++        resource.data.clientUid == request.auth.uid
++        || resource.data.tripDriverUid == request.auth.uid
++        || isAdmin());
++
++      allow create: if signedIn()
++        && bookingId == request.resource.data.tripId + '_' + request.auth.uid
++        && request.resource.data.clientUid == request.auth.uid
++        && request.resource.data.status == 'pending'
++        && userData(request.auth.uid).role == 'client'
++        && userData(request.auth.uid).verified == true;
++
++      allow update, delete: if false;
++    }
++  }
++}
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt b/app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt
+index 3ab10f2..aab4c2e 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/navigation/AppNavGraph.kt
+@@ -17,24 +17,12 @@ import androidx.navigation.compose.composable
+ import androidx.navigation.compose.rememberNavController
+ import androidx.navigation.navArgument
+ import kotlinx.coroutines.withTimeoutOrNull
+-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+-import me.mauromax.rutaconfiable.ui.components.data.Booking
+-import me.mauromax.rutaconfiable.ui.components.data.ProfileData
+-import me.mauromax.rutaconfiable.ui.components.data.ProfileRepository
+-import me.mauromax.rutaconfiable.ui.components.data.TripRepository
+-import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep1Screen
+-import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep2Screen
+-import me.mauromax.rutaconfiable.ui.screens.HomeScreen
+-import me.mauromax.rutaconfiable.ui.screens.LoadsScreen
+-import me.mauromax.rutaconfiable.ui.screens.LoginScreen
+-import me.mauromax.rutaconfiable.ui.screens.MyShipmentsScreen
+-import me.mauromax.rutaconfiable.ui.screens.PaymentMethodsScreen
+-import me.mauromax.rutaconfiable.ui.screens.ProfileScreen
+-import me.mauromax.rutaconfiable.ui.screens.RegistrationRole
+-import me.mauromax.rutaconfiable.ui.screens.RegistrationScreen
+-import me.mauromax.rutaconfiable.ui.screens.TripScreen
+-import me.mauromax.rutaconfiable.ui.screens.VerificationPendingScreen
+-import me.mauromax.rutaconfiable.ui.screens.WelcomeScreen
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
++import me.mauromax.rutaconfiable.ui.data.Booking
++import me.mauromax.rutaconfiable.ui.data.BookingRepository
++import me.mauromax.rutaconfiable.ui.data.ProfileData
++import me.mauromax.rutaconfiable.ui.data.ProfileRepository
++import me.mauromax.rutaconfiable.ui.screens.*
+ import me.mauromax.rutaconfiable.ui.theme.Background
+ import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+ 
+@@ -105,15 +93,22 @@ fun AppNavGraph(
+     navController: NavHostController = rememberNavController()
+ ) {
+     // Pantalla inicial según la sesión guardada por Firebase (null = todavía resolviendo).
++    // Con sesión: cuenta verificada -> perfil; cuenta sin verificar -> pantalla de verificación.
+     val resolvedStart by produceState<String?>(initialValue = null) {
+         value = if (!AuthRepository.isLoggedIn) {
+             Screen.Welcome.route
+         } else {
+-            when (withTimeoutOrNull(8_000) { AuthRepository.getRole() }) {
+-                "client" -> Screen.Profile.createRoute("client")
+-                "driver" -> Screen.Profile.createRoute("driver")
++            val status = withTimeoutOrNull(8_000) { AuthRepository.getAccountStatus() }
++            val role = when (status?.role) {
++                "client" -> "client"
++                "driver" -> "driver"
++                else -> null
++            }
++            when {
+                 // Sin rol o sin conexión: se pide iniciar sesión, sin cerrar la sesión guardada.
+-                else -> Screen.Welcome.route
++                status == null || role == null -> Screen.Welcome.route
++                status.isVerified -> Screen.Profile.createRoute(role)
++                else -> Screen.VerificationPending.createRoute(role)
+             }
+         }
+     }
+@@ -121,9 +116,7 @@ fun AppNavGraph(
+     val startRoute = resolvedStart
+     if (startRoute == null) {
+         Box(
+-            Modifier
+-                .fillMaxSize()
+-                .background(Background),
++            Modifier.fillMaxSize().background(Background),
+             contentAlignment = Alignment.Center
+         ) {
+             CircularProgressIndicator(color = PrimaryLight)
+@@ -145,6 +138,18 @@ fun AppNavGraph(
+                     navController.navigate(
+                         Screen.Registration.createRoute("driver")
+                     )
++                },
++                onGoogleSignedIn = { role, verified ->
++                    val destination = if (verified) {
++                        Screen.Profile.createRoute(roleParam(role))
++                    } else {
++                        Screen.VerificationPending.createRoute(roleParam(role))
++                    }
++                    navController.navigate(destination) {
++                        popUpTo(Screen.Welcome.route) {
++                            inclusive = true
++                        }
++                    }
+                 }
+             )
+         }
+@@ -154,7 +159,7 @@ fun AppNavGraph(
+                 onBackClick = {
+                     navController.popBackStack()
+                 },
+-                onLoginSuccess = { selectedRole ->
++                onLoginSuccess = { selectedRole, verified ->
+                     val routeRole =
+                         if (selectedRole == RegistrationRole.CLIENT) {
+                             "client"
+@@ -162,9 +167,14 @@ fun AppNavGraph(
+                             "driver"
+                         }
+ 
+-                    navController.navigate(
++                    // Cuenta sin aprobar: no entra al perfil, queda en la pantalla de verificación.
++                    val destination = if (verified) {
+                         Screen.Profile.createRoute(routeRole)
+-                    ) {
++                    } else {
++                        Screen.VerificationPending.createRoute(routeRole)
++                    }
++
++                    navController.navigate(destination) {
+                         popUpTo(Screen.Welcome.route) {
+                             inclusive = true
+                         }
+@@ -292,10 +302,15 @@ fun AppNavGraph(
+ 
+             VerificationPendingScreen(
+                 role = role,
++                // Se llama solo cuando un administrador aprobó la cuenta.
+                 onNavigateToProfile = {
+                     navController.navigate(
+                         Screen.Profile.createRoute(roleParam(role))
+-                    )
++                    ) {
++                        popUpTo(Screen.VerificationPending.route) {
++                            inclusive = true
++                        }
++                    }
+                 },
+                 onResetRegistration = {
+                     AuthRepository.logout()
+@@ -329,7 +344,7 @@ fun AppNavGraph(
+                 userName = profile.name,
+                 stats = profile.stats,
+                 trips = profile.trips,
+-                bookings = profile.bookings,
++                nextTrip = profile.nextTrip,
+                 onLogout = {
+                     AuthRepository.logout()
+                     navController.navigate(Screen.Welcome.route) {
+@@ -345,7 +360,6 @@ fun AppNavGraph(
+                     )
+                 },
+                 onNavigateToLoads = { navController.goCargas(role) }
+-
+             )
+         }
+ 
+@@ -365,11 +379,10 @@ fun AppNavGraph(
+ 
+             TripScreen(
+                 role = role,
+-                onNavigateToLoads = {
+-                    navController.goCargas(role)
++                onNavigateToHome = {
++                    navController.goTab(Screen.Home.createRoute(roleParam(role)))
+                 },
+-                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
+-
++                onNavigateToLoads = { navController.goCargas(role) },
+                 onNavigateToProfile = {
+                     navController.goTab(
+                         Screen.Profile.createRoute(roleParam(role))
+@@ -399,7 +412,9 @@ fun AppNavGraph(
+                         Screen.Trips.createRoute(roleParam(role))
+                     )
+                 },
+-                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
++                onNavigateToHome = {
++                    navController.goTab(Screen.Home.createRoute(roleParam(role)))
++                },
+                 onNavigateToTrips = {
+                     navController.goTab(
+                         Screen.Trips.createRoute(roleParam(role))
+@@ -412,6 +427,7 @@ fun AppNavGraph(
+                 }
+             )
+         }
++
+         composable(
+             route = Screen.Home.route,
+             arguments = listOf(navArgument("role") {
+@@ -428,13 +444,7 @@ fun AppNavGraph(
+                 onNavigateToLoads = { navController.goCargas(role) },
+                 onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
+                 onNavigateToProfile = {
+-                    navController.goTab(
+-                        Screen.Profile.createRoute(
+-                            roleParam(
+-                                role
+-                            )
+-                        )
+-                    )
++                    navController.goTab(Screen.Profile.createRoute(roleParam(role)))
+                 }
+             )
+         }
+@@ -447,21 +457,14 @@ fun AppNavGraph(
+         ) { backStackEntry ->
+             val role = parseRole(backStackEntry.arguments?.getString("role"))
+             val bookings by produceState(initialValue = emptyList<Booking>()) {
+-                value = TripRepository.loadMyBookings(asDriver = false).getOrDefault(emptyList())
++                value = BookingRepository.loadMyBookings().getOrDefault(emptyList())
+             }
+-
+             MyShipmentsScreen(
+                 bookings = bookings,
+                 onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
+                 onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
+                 onNavigateToProfile = {
+-                    navController.goTab(
+-                        Screen.Profile.createRoute(
+-                            roleParam(
+-                                role
+-                            )
+-                        )
+-                    )
++                    navController.goTab(Screen.Profile.createRoute(roleParam(role)))
+                 }
+             )
+         }
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/navigation/RegistrationViewModel.kt b/app/src/main/java/me/mauromax/rutaconfiable/navigation/RegistrationViewModel.kt
+index efef3dd..270696e 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/navigation/RegistrationViewModel.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/navigation/RegistrationViewModel.kt
+@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
+ import kotlinx.coroutines.launch
+-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
+ 
+ data class RegistrationUiState(
+     val currentRole: RegistrationRole = RegistrationRole.DRIVER,
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/components/AppTopBars.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/components/AppTopBars.kt
+index 0b9123a..d2ef3c4 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/components/AppTopBars.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/components/AppTopBars.kt
+@@ -1,27 +1,17 @@
+ package me.mauromax.rutaconfiable.ui.components
+ 
+-import androidx.compose.foundation.layout.Arrangement
+-import androidx.compose.foundation.layout.PaddingValues
+-import androidx.compose.foundation.layout.Row
+-import androidx.compose.foundation.layout.RowScope
+-import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.padding
+-import androidx.compose.foundation.layout.size
+-import androidx.compose.foundation.layout.statusBarsPadding
+-import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.automirrored.filled.ArrowBack
+ import androidx.compose.material.icons.filled.HelpOutline
+ import androidx.compose.material.icons.filled.Language
+ import androidx.compose.material.icons.filled.LocalShipping
+-import androidx.compose.material3.Icon
+-import androidx.compose.material3.IconButton
+-import androidx.compose.material3.MaterialTheme
+-import androidx.compose.material3.Surface
+-import androidx.compose.material3.Text
+-import androidx.compose.runtime.Composable
++import androidx.compose.material3.*
++import android.content.Intent
++import android.net.Uri
++import androidx.compose.runtime.*
++import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.Color
+@@ -31,10 +21,50 @@ import androidx.compose.ui.unit.Dp
+ import androidx.compose.ui.unit.TextUnit
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
++import me.mauromax.rutaconfiable.ui.theme.*
++
++private const val SUPPORT_EMAIL = "soporte@rutaconfiable.com"
++
++@Composable
++private fun HelpDialog(onDismiss: () -> Unit) {
++    val context = LocalContext.current
++    AlertDialog(
++        onDismissRequest = onDismiss,
++        title = { Text("Ayuda", fontWeight = FontWeight.Bold, color = PrimaryLight) },
++        text = {
++            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
++                Text(
++                    "Verificación: un administrador revisa tu cuenta antes de activarla. " +
++                            "La pantalla de verificación avanza sola cuando te aprueban.",
++                    fontSize = 13.sp
++                )
++                Text(
++                    "Reservas: elige un viaje, pulsa \"Reservar cupo o solicitar flete\" " +
++                            "e indica cuántos cupos o kilos necesitas.",
++                    fontSize = 13.sp
++                )
++                Text(
++                    "Contraseña: si no puedes entrar, usa \"¿Olvidaste tu contraseña?\" en el inicio de sesión.",
++                    fontSize = 13.sp
++                )
++                Text("¿Algo más? Escríbenos a $SUPPORT_EMAIL", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
++            }
++        },
++        confirmButton = {
++            TextButton(onClick = {
++                runCatching {
++                    context.startActivity(
++                        Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL"))
++                            .putExtra(Intent.EXTRA_SUBJECT, "Ayuda con Ruta Confiable")
++                    )
++                }
++                onDismiss()
++            }) { Text("Escribir a soporte") }
++        },
++        dismissButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } }
++    )
++}
+ 
+-/** Barra superior: fondo + fila con el contenido a izquierda y derecha. */
+ @Composable
+ private fun TopBarRow(horizontal: Dp, vertical: Dp, content: @Composable RowScope.() -> Unit) {
+     Surface(
+@@ -54,7 +84,6 @@ private fun TopBarRow(horizontal: Dp, vertical: Dp, content: @Composable RowScop
+     }
+ }
+ 
+-/** Icono del camión + nombre de la app. */
+ @Composable
+ private fun Logo(size: Dp, textSize: TextUnit) {
+     Surface(Modifier.size(size), shape = RoundedCornerShape(8.dp), color = PrimaryLight) {
+@@ -112,11 +141,13 @@ fun StandardAppTopBar(
+             }
+ 
+             if (showHelpIcon) {
++                var showHelp by remember { mutableStateOf(false) }
++                if (showHelp) HelpDialog { showHelp = false }
+                 Spacer(Modifier.width(6.dp))
+-                IconButton(onClick = { }) {
++                IconButton(onClick = { showHelp = true }) {
+                     Icon(Icons.Default.HelpOutline, "Ayuda", tint = PrimaryLight)
+                 }
+             }
+         }
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/AuthRepository.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/AuthRepository.kt
+deleted file mode 100644
+index cd8b196..0000000
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/AuthRepository.kt
++++ /dev/null
+@@ -1,96 +0,0 @@
+-package me.mauromax.rutaconfiable.ui.components.data
+-
+-import com.google.firebase.FirebaseNetworkException
+-import com.google.firebase.FirebaseTooManyRequestsException
+-import com.google.firebase.auth.FirebaseAuth
+-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+-import com.google.firebase.auth.FirebaseAuthInvalidUserException
+-import com.google.firebase.auth.FirebaseAuthUserCollisionException
+-import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+-import com.google.firebase.firestore.FirebaseFirestore
+-import kotlinx.coroutines.tasks.await
+-
+-object AuthRepository {
+-    private val auth get() = FirebaseAuth.getInstance()
+-    private val db get() = FirebaseFirestore.getInstance()
+-
+-    val isLoggedIn: Boolean get() = auth.currentUser != null
+-
+-    suspend fun login(email: String, password: String): Result<Unit> = runCatching {
+-        auth.signInWithEmailAndPassword(email, password).await()
+-        Unit
+-    }
+-
+-    /**
+-     * Crea la cuenta en Firebase Auth y guarda el perfil en Firestore (users/{uid}).
+-     * [profile] trae los datos extra del formulario (teléfono, documento, vehículo, etc.).
+-     * Nunca se guarda la contraseña. Los campos base (name, email, role, verified, createdAt)
+-     * van después de [profile], así que este no puede sobrescribirlos.
+-     * Si falla el guardado en Firestore, se elimina la cuenta recién creada para no dejar
+-     * un usuario de Auth sin perfil (y poder reintentar con el mismo correo).
+-     */
+-    suspend fun register(
+-        email: String,
+-        password: String,
+-        name: String,
+-        role: String, // "driver" o "client"
+-        profile: Map<String, Any?> = emptyMap()
+-    ): Result<Unit> = runCatching {
+-        val result = auth.createUserWithEmailAndPassword(email, password).await()
+-        val user = result.user!!
+-        try {
+-            db.collection("users").document(user.uid).set(
+-                profile + mapOf(
+-                    "name" to name,
+-                    "email" to email,
+-                    "role" to role,
+-                    "verified" to false,
+-                    "createdAt" to System.currentTimeMillis()
+-                )
+-            ).await()
+-        } catch (e: Exception) {
+-            runCatching { user.delete().await() }
+-            throw e
+-        }
+-        Unit
+-    }
+-
+-    /**
+-     * Rol guardado en Firestore para el usuario actual ("driver" o "client").
+-     * Devuelve null si no hay sesión, si falla la lectura o si el documento no tiene rol,
+-     * para no asumir un rol por defecto.
+-     */
+-    suspend fun getRole(): String? = runCatching {
+-        val uid = auth.currentUser?.uid ?: return@runCatching null
+-        db.collection("users").document(uid).get().await().getString("role")
+-    }.getOrNull()
+-
+-    /** Nombre guardado en el perfil del usuario actual, o null si no se puede leer. */
+-    suspend fun getName(): String? = runCatching {
+-        val uid = auth.currentUser?.uid ?: return@runCatching null
+-        db.collection("users").document(uid).get().await().getString("name")
+-    }.getOrNull()?.takeIf { it.isNotBlank() }
+-
+-    /**
+-     * Envía el correo con el enlace para restablecer la contraseña.
+-     * Si el correo no está registrado se trata como éxito, para no revelar qué cuentas existen.
+-     */
+-    suspend fun sendPasswordReset(email: String): Result<Unit> = runCatching {
+-        auth.sendPasswordResetEmail(email).await()
+-        Unit
+-    }.recoverCatching { e ->
+-        if (e is FirebaseAuthInvalidUserException) Unit else throw e
+-    }
+-
+-    fun logout() = auth.signOut()
+-
+-    fun friendlyError(e: Throwable): String = when (e) {
+-        is FirebaseAuthUserCollisionException -> "Ese correo ya tiene una cuenta."
+-        is FirebaseAuthWeakPasswordException -> "La contraseña es muy débil."
+-        is FirebaseAuthInvalidCredentialsException,
+-        is FirebaseAuthInvalidUserException -> "Correo o contraseña incorrectos."
+-        is FirebaseNetworkException -> "Sin conexión a internet."
+-        is FirebaseTooManyRequestsException -> "Demasiados intentos. Espera un momento e intenta de nuevo."
+-        else -> "No se pudo completar. Intenta de nuevo."
+-    }
+-}
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/ProfileRepository.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/ProfileRepository.kt
+deleted file mode 100644
+index 4c6b4b3..0000000
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/ProfileRepository.kt
++++ /dev/null
+@@ -1,77 +0,0 @@
+-package me.mauromax.rutaconfiable.ui.components.data
+-
+-import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
+-import me.mauromax.rutaconfiable.ui.screens.ProfileStats
+-import me.mauromax.rutaconfiable.ui.screens.RegistrationRole
+-import me.mauromax.rutaconfiable.ui.screens.Trip
+-import me.mauromax.rutaconfiable.ui.theme.Outline
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailableBg
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
+-import java.text.SimpleDateFormat
+-import java.util.Calendar
+-import java.util.Locale
+-
+-/** Lo que muestra el perfil, calculado con datos reales del usuario. */
+-data class ProfileData(
+-    val name: String = "Usuario",
+-    val stats: ProfileStats = ProfileStats(),
+-    val trips: List<Trip> = emptyList(),
+-    val bookings: List<Booking> = emptyList()
+-)
+-
+-object ProfileRepository {
+-
+-    /**
+-     * Carga nombre, contadores y viajes del usuario actual.
+-     * Conductor: sus viajes publicados. Cliente: todavía no hay reservas, así que va vacío.
+-     * "En curso", "Completados" y las calificaciones quedan en 0 hasta que existan
+-     * estados de viaje y calificaciones.
+-     */
+-    suspend fun load(role: RegistrationRole): ProfileData {
+-        val name = AuthRepository.getName() ?: "Usuario"
+-        if (role != RegistrationRole.DRIVER) return ProfileData(name = name)
+-
+-        val mine = TripRepository.loadMyTrips().getOrDefault(emptyList())
+-        val todayStart = startOfToday()
+-        val upcoming = mine.map { isUpcoming(it.date, todayStart) }
+-
+-        return ProfileData(
+-            name = name,
+-            stats = ProfileStats(active = upcoming.count { it }),
+-            trips = mine.mapIndexed { i, trip -> trip.toProfileTrip(upcoming[i]) },
+-            bookings = TripRepository.loadMyBookings(asDriver = true).getOrDefault(emptyList())
+-
+-        )
+-    }
+-
+-    private fun startOfToday(): Long = Calendar.getInstance().apply {
+-        set(Calendar.HOUR_OF_DAY, 0)
+-        set(Calendar.MINUTE, 0)
+-        set(Calendar.SECOND, 0)
+-        set(Calendar.MILLISECOND, 0)
+-    }.timeInMillis
+-
+-    /** Fecha dd/MM/yyyy. Si no se puede leer, se considera vigente. */
+-    private fun isUpcoming(date: String, todayStart: Long): Boolean {
+-        val parsed = runCatching {
+-            SimpleDateFormat("dd/MM/yyyy", Locale("es", "CO")).apply { isLenient = false }.parse(date)
+-        }.getOrNull() ?: return true
+-        return parsed.time >= todayStart
+-    }
+-
+-    private fun AvailableTrip.toProfileTrip(upcoming: Boolean) = Trip(
+-        date = listOf(date, departure).filter { it.isNotBlank() }.joinToString(" · "),
+-        from = origin,
+-        to = destination,
+-        tag = if (upcoming) "PUBLICADO" else "FECHA PASADA",
+-        tagBg = if (upcoming) StatusAvailableBg else SurfaceMuted,
+-        tagFg = if (upcoming) StatusAvailable else Outline,
+-        price = if (hasCargo) cargoPrice else seatPrice,
+-        info = buildList {
+-            add(listOf(vehicle, plate).filter { it.isNotBlank() }.joinToString(" · "))
+-            if (hasCargo) add("Carga $cargoTotalKg kg")
+-            if (hasSeats) add("$seatsTotal cupos")
+-        }.filter { it.isNotBlank() }.joinToString(" · ")
+-    )
+-}
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/data/AuthRepository.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/data/AuthRepository.kt
+new file mode 100644
+index 0000000..dbc6a1d
+--- /dev/null
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/data/AuthRepository.kt
+@@ -0,0 +1,197 @@
++package me.mauromax.rutaconfiable.ui.data
++
++import com.google.firebase.FirebaseNetworkException
++import com.google.firebase.FirebaseTooManyRequestsException
++import com.google.firebase.auth.FirebaseAuth
++import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
++import com.google.firebase.auth.FirebaseAuthInvalidUserException
++import com.google.firebase.auth.FirebaseAuthUserCollisionException
++import com.google.firebase.auth.FirebaseAuthWeakPasswordException
++import com.google.firebase.auth.GoogleAuthProvider
++import com.google.firebase.firestore.DocumentSnapshot
++import com.google.firebase.firestore.FirebaseFirestore
++import com.google.firebase.firestore.Source
++import kotlinx.coroutines.channels.awaitClose
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.callbackFlow
++import kotlinx.coroutines.tasks.await
++
++/** Estado de la revisión de identidad de una cuenta. */
++enum class VerificationStatus { PENDING, APPROVED, REJECTED }
++
++/**
++ * Rol y estado de verificación de la cuenta, leídos de users/{uid}.
++ * Solo un administrador puede cambiar la verificación (ver firestore.rules y admin/).
++ */
++data class AccountStatus(
++    val role: String?,
++    val verification: VerificationStatus,
++    val rejectionReason: String? = null
++) {
++    val isVerified: Boolean get() = verification == VerificationStatus.APPROVED
++}
++
++private fun DocumentSnapshot.toAccountStatus(): AccountStatus {
++    val verification = when {
++        getBoolean("verified") == true -> VerificationStatus.APPROVED
++        getString("verificationStatus") == "rejected" -> VerificationStatus.REJECTED
++        else -> VerificationStatus.PENDING
++    }
++    return AccountStatus(
++        role = getString("role"),
++        verification = verification,
++        rejectionReason = getString("rejectionReason")?.takeIf { it.isNotBlank() }
++    )
++}
++
++object AuthRepository {
++    private val auth get() = FirebaseAuth.getInstance()
++    private val db get() = FirebaseFirestore.getInstance()
++
++    val isLoggedIn: Boolean get() = auth.currentUser != null
++
++    suspend fun login(email: String, password: String): Result<Unit> = runCatching {
++        auth.signInWithEmailAndPassword(email, password).await()
++        Unit
++    }
++
++    /** Inicia sesión en Firebase con el ID token que entregó Google (crea la cuenta si es nueva). */
++    suspend fun signInWithGoogle(idToken: String): Result<Unit> = runCatching {
++        auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
++        Unit
++    }
++
++    /** Si el usuario actual ya tiene perfil en Firestore (users/{uid}). Falla si no se puede leer. */
++    suspend fun hasProfile(): Result<Boolean> = runCatching {
++        val uid = auth.currentUser?.uid ?: error("Sin sesión")
++        db.collection("users").document(uid).get().await().exists()
++    }
++
++    /**
++     * Crea el perfil de una cuenta que entró con Google por primera vez, con el rol elegido.
++     * Igual que en el registro normal, nace sin verificar y pendiente de revisión.
++     * Nota: no trae documento, licencia ni placa; esos datos solo los pide el registro con correo.
++     */
++    suspend fun createGoogleProfile(role: String): Result<Unit> = runCatching {
++        val user = auth.currentUser ?: error("Sin sesión")
++        db.collection("users").document(user.uid).set(
++            mapOf(
++                "name" to (user.displayName?.takeIf { it.isNotBlank() } ?: user.email ?: "Usuario"),
++                "email" to user.email.orEmpty(),
++                "role" to role,
++                "verified" to false,
++                "verificationStatus" to "pending",
++                "authProvider" to "google",
++                "createdAt" to System.currentTimeMillis()
++            )
++        ).await()
++        Unit
++    }
++
++    /**
++     * Crea la cuenta en Firebase Auth y guarda el perfil en Firestore (users/{uid}).
++     * [profile] trae los datos extra del formulario (teléfono, documento, vehículo, etc.).
++     * Nunca se guarda la contraseña. Los campos base (name, email, role, verified, createdAt)
++     * van después de [profile], así que este no puede sobrescribirlos.
++     * Si falla el guardado en Firestore, se elimina la cuenta recién creada para no dejar
++     * un usuario de Auth sin perfil (y poder reintentar con el mismo correo).
++     */
++    suspend fun register(
++        email: String,
++        password: String,
++        name: String,
++        role: String, // "driver" o "client"
++        profile: Map<String, Any?> = emptyMap()
++    ): Result<Unit> = runCatching {
++        val result = auth.createUserWithEmailAndPassword(email, password).await()
++        val user = result.user!!
++        try {
++            db.collection("users").document(user.uid).set(
++                profile + mapOf(
++                    "name" to name,
++                    "email" to email,
++                    "role" to role,
++                    "verified" to false,
++                    "verificationStatus" to "pending",
++                    "createdAt" to System.currentTimeMillis()
++                )
++            ).await()
++        } catch (e: Exception) {
++            runCatching { user.delete().await() }
++            throw e
++        }
++        Unit
++    }
++
++    /**
++     * Rol guardado en Firestore para el usuario actual ("driver" o "client").
++     * Devuelve null si no hay sesión, si falla la lectura o si el documento no tiene rol,
++     * para no asumir un rol por defecto.
++     */
++    suspend fun getRole(): String? = runCatching {
++        val uid = auth.currentUser?.uid ?: return@runCatching null
++        db.collection("users").document(uid).get().await().getString("role")
++    }.getOrNull()
++
++    /**
++     * Rol y estado de verificación del usuario actual. Con [fromServer] = true se fuerza la
++     * lectura al servidor (no a la caché), para ver una aprobación reciente.
++     * Devuelve null si no hay sesión, si falla la lectura (p. ej. sin conexión) o si no existe
++     * el perfil. El rol puede venir null si el documento no lo tiene.
++     */
++    suspend fun getAccountStatus(fromServer: Boolean = false): AccountStatus? = runCatching {
++        val uid = auth.currentUser?.uid ?: return@runCatching null
++        val ref = db.collection("users").document(uid)
++        val doc = if (fromServer) ref.get(Source.SERVER).await() else ref.get().await()
++        if (doc.exists()) doc.toAccountStatus() else null
++    }.getOrNull()
++
++    /**
++     * Escucha en tiempo real el estado del usuario actual, para que la pantalla de
++     * verificación avance sola cuando un administrador apruebe la cuenta.
++     * Los errores transitorios (sin conexión) se ignoran; el listener sigue activo.
++     */
++    fun observeAccountStatus(): Flow<AccountStatus> = callbackFlow {
++        val uid = auth.currentUser?.uid
++        if (uid == null) {
++            close()
++            return@callbackFlow
++        }
++        val registration = db.collection("users").document(uid)
++            .addSnapshotListener { snapshot, error ->
++                if (error == null && snapshot != null && snapshot.exists()) {
++                    trySend(snapshot.toAccountStatus())
++                }
++            }
++        awaitClose { registration.remove() }
++    }
++
++    /** Nombre guardado en el perfil del usuario actual, o null si no se puede leer. */
++    suspend fun getName(): String? = runCatching {
++        val uid = auth.currentUser?.uid ?: return@runCatching null
++        db.collection("users").document(uid).get().await().getString("name")
++    }.getOrNull()?.takeIf { it.isNotBlank() }
++
++    /**
++     * Envía el correo con el enlace para restablecer la contraseña.
++     * Si el correo no está registrado se trata como éxito, para no revelar qué cuentas existen.
++     */
++    suspend fun sendPasswordReset(email: String): Result<Unit> = runCatching {
++        auth.sendPasswordResetEmail(email).await()
++        Unit
++    }.recoverCatching { e ->
++        if (e is FirebaseAuthInvalidUserException) Unit else throw e
++    }
++
++    fun logout() = auth.signOut()
++
++    fun friendlyError(e: Throwable): String = when (e) {
++        is FirebaseAuthUserCollisionException -> "Ese correo ya tiene una cuenta."
++        is FirebaseAuthWeakPasswordException -> "La contraseña es muy débil."
++        is FirebaseAuthInvalidCredentialsException,
++        is FirebaseAuthInvalidUserException -> "Correo o contraseña incorrectos."
++        is FirebaseNetworkException -> "Sin conexión a internet."
++        is FirebaseTooManyRequestsException -> "Demasiados intentos. Espera un momento e intenta de nuevo."
++        else -> "No se pudo completar. Intenta de nuevo."
++    }
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/data/BookingRepository.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/data/BookingRepository.kt
+new file mode 100644
+index 0000000..ba499ce
+--- /dev/null
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/data/BookingRepository.kt
+@@ -0,0 +1,179 @@
++package me.mauromax.rutaconfiable.ui.data
++
++import com.google.firebase.auth.FirebaseAuth
++import com.google.firebase.firestore.DocumentSnapshot
++import com.google.firebase.firestore.FirebaseFirestore
++import kotlinx.coroutines.tasks.await
++import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
++import me.mauromax.rutaconfiable.ui.screens.TripException
++
++/** Una reserva de cupos y/o carga en un viaje. [status]: "pending", "confirmed", "rejected"... */
++data class Booking(
++    val id: String,
++    val tripId: String,
++    val clientName: String,
++    val seats: Int,
++    val cargoKg: Int,
++    val origin: String,
++    val destination: String,
++    val date: String,
++    val departure: String,
++    val seatPrice: String,
++    val cargoPrice: String,
++    val vehicle: String,
++    val plate: String,
++    val driverName: String,
++    val status: String,
++    val createdAt: Long
++)
++
++/**
++ * Reservas de cupos y flete, guardadas en Firestore (colección "bookings").
++ * Cada reserva descuenta los cupos y los kg del viaje en la MISMA transacción, así dos
++ * clientes no pueden reservar el mismo cupo.
++ */
++object BookingRepository {
++    private const val BOOKINGS = "bookings"
++    private const val TRIPS = "trips"
++
++    private val db get() = FirebaseFirestore.getInstance()
++    private val auth get() = FirebaseAuth.getInstance()
++
++    /**
++     * Reserva [seats] cupos y/o [cargoKg] kg de carga en [trip] para el cliente con sesión.
++     * Devuelve el id de la reserva. Los errores traen un mensaje listo para mostrar
++     * ([me.mauromax.rutaconfiable.ui.screens.TripException]); para el resto usa [me.mauromax.rutaconfiable.ui.screens.TripRepository.friendlyError].
++     */
++    suspend fun book(trip: AvailableTrip, seats: Int, cargoKg: Int): Result<String> = runCatching {
++        val uid = auth.currentUser?.uid
++            ?: throw TripException("Inicia sesión para reservar.")
++        if (seats < 0 || cargoKg < 0 || (seats == 0 && cargoKg == 0)) {
++            throw TripException("Elige cuántos cupos o kilos quieres reservar.")
++        }
++        if (trip.driverUid == uid) {
++            throw TripException("No puedes reservar tu propio viaje.")
++        }
++
++        val userDoc = db.collection("users").document(uid).get().await()
++        if (userDoc.getString("role") != "client") {
++            throw TripException("Solo los clientes pueden reservar.")
++        }
++        if (userDoc.getBoolean("verified") != true) {
++            throw TripException("Tu cuenta aún no está verificada. Podrás reservar cuando sea aprobada.")
++        }
++        val clientName = userDoc.getString("name").orEmpty()
++
++        val tripRef = db.collection(TRIPS).document(trip.id)
++        // Id determinista "<códigoViaje>_<uidCliente>": una reserva por cliente y viaje.
++        // Las reglas de Firestore lo exigen para validar el descuento de cupos.
++        val bookingRef = db.collection(BOOKINGS).document("${trip.id}_$uid")
++
++        db.runTransaction<Boolean> { tx ->
++            val snap = tx.get(tripRef)
++            if (!snap.exists()) throw TripException("Este viaje ya no está disponible.")
++            if (tx.get(bookingRef).exists()) {
++                throw TripException("Ya tienes una reserva en este viaje.")
++            }
++
++            val seatsFree = snap.getLong("seatsFree")?.toInt() ?: 0
++            val cargoFree = snap.getLong("cargoFreeKg")?.toInt() ?: 0
++            if (seats > 0 && !(snap.getBoolean("hasSeats") ?: true)) {
++                throw TripException("Este viaje no lleva pasajeros.")
++            }
++            if (cargoKg > 0 && !(snap.getBoolean("hasCargo") ?: true)) {
++                throw TripException("Este viaje no lleva carga.")
++            }
++            if (seats > seatsFree) {
++                throw TripException(
++                    if (seatsFree == 0) "Ya no quedan cupos." else "Solo quedan $seatsFree cupos."
++                )
++            }
++            if (cargoKg > cargoFree) {
++                throw TripException(
++                    if (cargoFree == 0) "Ya no queda espacio de carga." else "Solo quedan $cargoFree kg libres."
++                )
++            }
++
++            tx.update(
++                tripRef,
++                mapOf(
++                    "seatsFree" to seatsFree - seats,
++                    "cargoFreeKg" to cargoFree - cargoKg
++                )
++            )
++            tx.set(
++                bookingRef,
++                mapOf(
++                    "tripId" to trip.id,
++                    "tripDriverUid" to (snap.getString("driverUid") ?: ""),
++                    "clientUid" to uid,
++                    "clientName" to clientName,
++                    "vehicle" to trip.vehicle,
++                    "plate" to trip.plate,
++                    "driverName" to trip.driver,
++                    "seats" to seats,
++                    "cargoKg" to cargoKg,
++                    "origin" to trip.origin,
++                    "destination" to trip.destination,
++                    "date" to trip.date,
++                    "departure" to trip.departure,
++                    "seatPrice" to trip.seatPrice,
++                    "cargoPrice" to trip.cargoPrice,
++                    "status" to "pending", // el conductor la confirmará en una etapa posterior
++                    "createdAt" to System.currentTimeMillis()
++                )
++            )
++            true
++        }.await()
++
++        bookingRef.id
++    }
++
++    /** Reservas hechas por el cliente con sesión, de la más reciente a la más antigua. */
++    suspend fun loadMyBookings(): Result<List<Booking>> = runCatching {
++        val uid = auth.currentUser?.uid
++            ?: throw TripException("Inicia sesión para ver tus reservas.")
++        db.collection(BOOKINGS)
++            .whereEqualTo("clientUid", uid)
++            .get()
++            .await()
++            .documents
++            .mapNotNull { it.toBooking() }
++            .sortedByDescending { it.createdAt }
++    }
++
++    /** Reservas de un viaje del conductor con sesión (para su manifiesto). */
++    suspend fun loadTripBookings(tripId: String): Result<List<Booking>> = runCatching {
++        val uid = auth.currentUser?.uid
++            ?: throw TripException("Inicia sesión para ver las reservas.")
++        db.collection(BOOKINGS)
++            .whereEqualTo("tripDriverUid", uid)
++            .whereEqualTo("tripId", tripId)
++            .get()
++            .await()
++            .documents
++            .mapNotNull { it.toBooking() }
++            .sortedBy { it.createdAt }
++    }
++
++    private fun DocumentSnapshot.toBooking(): Booking? = runCatching {
++        Booking(
++            id = id,
++            tripId = getString("tripId").orEmpty(),
++            clientName = getString("clientName").orEmpty(),
++            seats = getLong("seats")?.toInt() ?: 0,
++            cargoKg = getLong("cargoKg")?.toInt() ?: 0,
++            origin = getString("origin").orEmpty(),
++            destination = getString("destination").orEmpty(),
++            date = getString("date").orEmpty(),
++            departure = getString("departure").orEmpty(),
++            seatPrice = getString("seatPrice") ?: "-",
++            cargoPrice = getString("cargoPrice") ?: "-",
++            vehicle = getString("vehicle").orEmpty(),
++            plate = getString("plate").orEmpty(),
++            driverName = getString("driverName").orEmpty(),
++            status = getString("status") ?: "pending",
++            createdAt = getLong("createdAt") ?: 0L
++        )
++    }.getOrNull()
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/data/ProfileRepository.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/data/ProfileRepository.kt
+new file mode 100644
+index 0000000..8af99b3
+--- /dev/null
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/data/ProfileRepository.kt
+@@ -0,0 +1,216 @@
++package me.mauromax.rutaconfiable.ui.data
++
++import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
++import me.mauromax.rutaconfiable.ui.screens.ManifestEntry
++import me.mauromax.rutaconfiable.ui.screens.NextTrip
++import me.mauromax.rutaconfiable.ui.screens.ProfileStats
++import me.mauromax.rutaconfiable.ui.screens.RegistrationRole
++import me.mauromax.rutaconfiable.ui.screens.Trip
++import me.mauromax.rutaconfiable.ui.screens.TripRepository
++import me.mauromax.rutaconfiable.ui.theme.Outline
++import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
++import me.mauromax.rutaconfiable.ui.theme.StatusAvailableBg
++import me.mauromax.rutaconfiable.ui.theme.StatusBooked
++import me.mauromax.rutaconfiable.ui.theme.StatusBookedBg
++import me.mauromax.rutaconfiable.ui.theme.StatusPending
++import me.mauromax.rutaconfiable.ui.theme.StatusPendingBg
++import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
++import java.text.SimpleDateFormat
++import java.util.Calendar
++import java.util.Locale
++
++/** Lo que muestra el perfil, calculado con datos reales del usuario. */
++data class ProfileData(
++    val name: String = "Usuario",
++    val stats: ProfileStats = ProfileStats(),
++    val trips: List<Trip> = emptyList(),
++    val nextTrip: NextTrip? = null
++)
++
++object ProfileRepository {
++
++    /**
++     * Carga nombre, contadores, lista de viajes y próximo viaje del usuario actual.
++     * Conductor: sus viajes publicados (y las reservas del próximo viaje, para el manifiesto).
++     * Cliente: sus reservas.
++     * "En curso", "Completados" y las calificaciones quedan en 0 hasta que existan
++     * estados de viaje y calificaciones.
++     */
++    suspend fun load(role: RegistrationRole): ProfileData {
++        val name = AuthRepository.getName() ?: "Usuario"
++        val todayStart = startOfToday()
++        return if (role == RegistrationRole.DRIVER) loadDriver(name, todayStart)
++        else loadClient(name, todayStart)
++    }
++
++    private suspend fun loadDriver(name: String, todayStart: Long): ProfileData {
++        val mine = TripRepository.loadMyTrips().getOrDefault(emptyList())
++        val upcoming = mine.map { isUpcoming(it.date, todayStart) }
++
++        // Próximo viaje: el vigente con la fecha más cercana (y hora más temprana).
++        val nextTrip = mine
++            .mapNotNull { trip -> parseDate(trip.date)?.takeIf { it >= todayStart }?.let { trip to it } }
++            .minWithOrNull(compareBy({ it.second }, { it.first.departure }))
++            ?.let { (trip, dateMillis) ->
++                val bookings = BookingRepository.loadTripBookings(trip.id).getOrDefault(emptyList())
++                trip.toNextTrip(dateMillis, todayStart, bookings)
++            }
++
++        return ProfileData(
++            name = name,
++            stats = ProfileStats(active = upcoming.count { it }),
++            trips = mine.mapIndexed { i, trip -> trip.toProfileTrip(upcoming[i]) },
++            nextTrip = nextTrip
++        )
++    }
++
++    private suspend fun loadClient(name: String, todayStart: Long): ProfileData {
++        val bookings = BookingRepository.loadMyBookings().getOrDefault(emptyList())
++        val live = bookings.filter { it.status == "pending" || it.status == "confirmed" }
++        val upcoming = bookings.map { isUpcoming(it.date, todayStart) }
++
++        val nextBooking = live
++            .mapNotNull { b -> parseDate(b.date)?.takeIf { it >= todayStart }?.let { b to it } }
++            .minWithOrNull(compareBy({ it.second }, { it.first.departure }))
++
++        return ProfileData(
++            name = name,
++            stats = ProfileStats(
++                active = bookings.indices.count {
++                    upcoming[it] && (bookings[it].status == "pending" || bookings[it].status == "confirmed")
++                }
++            ),
++            trips = bookings.mapIndexed { i, b -> b.toProfileTrip(upcoming[i]) },
++            nextTrip = nextBooking?.let { (b, dateMillis) -> b.toNextTrip(dateMillis, todayStart) }
++        )
++    }
++
++    private fun startOfToday(): Long = Calendar.getInstance().apply {
++        set(Calendar.HOUR_OF_DAY, 0)
++        set(Calendar.MINUTE, 0)
++        set(Calendar.SECOND, 0)
++        set(Calendar.MILLISECOND, 0)
++    }.timeInMillis
++
++    /** Fecha dd/MM/yyyy a milisegundos, o null si no se puede leer. */
++    private fun parseDate(date: String): Long? = runCatching {
++        SimpleDateFormat("dd/MM/yyyy", Locale("es", "CO")).apply { isLenient = false }.parse(date)?.time
++    }.getOrNull()
++
++    /** Si la fecha no se puede leer, se considera vigente. */
++    private fun isUpcoming(date: String, todayStart: Long): Boolean {
++        val parsed = parseDate(date) ?: return true
++        return parsed >= todayStart
++    }
++
++    private fun leavesIn(dateMillis: Long, todayStart: Long): String {
++        val days = Math.round((dateMillis - todayStart) / 86_400_000.0).toInt()
++        return when {
++            days <= 0 -> "Sale hoy"
++            days == 1 -> "Sale mañana"
++            else -> "Sale en $days días"
++        }
++    }
++
++    private fun AvailableTrip.toNextTrip(
++        dateMillis: Long,
++        todayStart: Long,
++        bookings: List<Booking>
++    ): NextTrip {
++        val cargoBooked = if (hasCargo) (cargoTotalKg - cargoFreeKg).coerceAtLeast(0) else 0
++        val seatsBooked = if (hasSeats) (seatsTotal - seatsFree).coerceAtLeast(0) else 0
++        val ratios = buildList {
++            if (hasCargo && cargoTotalKg > 0) add(cargoBooked.toFloat() / cargoTotalKg)
++            if (hasSeats && seatsTotal > 0) add(seatsBooked.toFloat() / seatsTotal)
++        }
++        return NextTrip(
++            id = id,
++            leavesIn = leavesIn(dateMillis, todayStart),
++            from = origin,
++            to = destination,
++            departure = departure,
++            arrival = "—",
++            duration = duration,
++            via = distance,
++            occupancy = if (ratios.isEmpty()) 0f else ratios.average().toFloat().coerceIn(0f, 1f),
++            vehicle = listOf(vehicle, plate).filter { it.isNotBlank() }.joinToString(" · "),
++            cargo = if (hasCargo) "$cargoBooked / $cargoTotalKg kg" else "No aplica",
++            seats = if (hasSeats) "$seatsBooked / $seatsTotal" else "No aplica",
++            date = date,
++            entries = bookings.map { it.toEntry(it.clientName.ifBlank { "Cliente" }) }
++        )
++    }
++
++    private fun Booking.toNextTrip(dateMillis: Long, todayStart: Long) = NextTrip(
++        id = tripId,
++        leavesIn = leavesIn(dateMillis, todayStart),
++        from = origin,
++        to = destination,
++        departure = departure,
++        arrival = "—",
++        duration = "—",
++        via = "—",
++        occupancy = null,
++        vehicle = listOf(vehicle, plate).filter { it.isNotBlank() }.joinToString(" · ")
++            .ifBlank { "—" },
++        cargo = if (cargoKg > 0) "$cargoKg kg" else "—",
++        seats = if (seats > 0) "$seats" else "—",
++        date = date,
++        entries = listOf(toEntry("Tú"))
++    )
++
++    private fun Booking.toEntry(who: String) = ManifestEntry(
++        name = who,
++        detail = reservedText(),
++        status = statusLabel()
++    )
++
++    private fun Booking.reservedText(): String = buildList {
++        if (seats > 0) add(if (seats == 1) "1 cupo" else "$seats cupos")
++        if (cargoKg > 0) add("$cargoKg kg")
++    }.joinToString(" · ")
++
++    private fun Booking.statusLabel() = when (status) {
++        "confirmed" -> "CONFIRMADA"
++        "rejected" -> "RECHAZADA"
++        "cancelled" -> "CANCELADA"
++        else -> "PENDIENTE"
++    }
++
++    private fun AvailableTrip.toProfileTrip(upcoming: Boolean) = Trip(
++        date = listOf(date, departure).filter { it.isNotBlank() }.joinToString(" · "),
++        from = origin,
++        to = destination,
++        tag = if (upcoming) "PUBLICADO" else "FECHA PASADA",
++        tagBg = if (upcoming) StatusAvailableBg else SurfaceMuted,
++        tagFg = if (upcoming) StatusAvailable else Outline,
++        price = if (hasCargo) cargoPrice else seatPrice,
++        info = buildList {
++            add(listOf(vehicle, plate).filter { it.isNotBlank() }.joinToString(" · "))
++            if (hasCargo) add("Carga $cargoTotalKg kg")
++            if (hasSeats) add("$seatsTotal cupos")
++        }.filter { it.isNotBlank() }.joinToString(" · ")
++    )
++
++    private fun Booking.toProfileTrip(upcoming: Boolean): Trip {
++        val (bg, fg) = when {
++            status == "rejected" || status == "cancelled" -> StatusBookedBg to StatusBooked
++            !upcoming -> SurfaceMuted to Outline
++            status == "confirmed" -> StatusAvailableBg to StatusAvailable
++            else -> StatusPendingBg to StatusPending
++        }
++        return Trip(
++            date = listOf(date, departure).filter { it.isNotBlank() }.joinToString(" · "),
++            from = origin,
++            to = destination,
++            tag = if (!upcoming && status == "pending") "FECHA PASADA" else statusLabel(),
++            tagBg = bg,
++            tagFg = fg,
++            price = if (seats > 0) seatPrice else cargoPrice,
++            info = buildList {
++                add(reservedText())
++                add(listOf(vehicle, plate).filter { it.isNotBlank() }.joinToString(" · "))
++            }.filter { it.isNotBlank() }.joinToString(" · ")
++        )
++    }
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ForgotPasswordStep1Screen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ForgotPasswordStep1Screen.kt
+index 83a7a85..2b54487 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ForgotPasswordStep1Screen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ForgotPasswordStep1Screen.kt
+@@ -1,11 +1,7 @@
+ package me.mauromax.rutaconfiable.ui.screens
+ 
+ import android.util.Patterns
+-import androidx.compose.foundation.layout.Box
+-import androidx.compose.foundation.layout.Column
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.padding
+-import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.text.KeyboardOptions
+@@ -13,17 +9,8 @@ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.automirrored.filled.ArrowBack
+ import androidx.compose.material.icons.filled.Email
+ import androidx.compose.material.icons.filled.Restore
+-import androidx.compose.material3.Icon
+-import androidx.compose.material3.OutlinedTextField
+-import androidx.compose.material3.Scaffold
+-import androidx.compose.material3.Surface
+-import androidx.compose.material3.Text
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.mutableStateOf
+-import androidx.compose.runtime.remember
+-import androidx.compose.runtime.rememberCoroutineScope
+-import androidx.compose.runtime.setValue
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.text.font.FontWeight
+@@ -32,26 +19,9 @@ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ import kotlinx.coroutines.launch
+-import me.mauromax.rutaconfiable.ui.components.AppCard
+-import me.mauromax.rutaconfiable.ui.components.BodyText
+-import me.mauromax.rutaconfiable.ui.components.FieldLabel
+-import me.mauromax.rutaconfiable.ui.components.Hint
+-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+-import me.mauromax.rutaconfiable.ui.components.ScreenColumn
+-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
+-import me.mauromax.rutaconfiable.ui.components.SecondaryOutlinedButton
+-import me.mauromax.rutaconfiable.ui.components.SecurityAdviceBox
+-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+-import me.mauromax.rutaconfiable.ui.components.TlsEncryptionBadge
+-import me.mauromax.rutaconfiable.ui.components.customTextFieldColors
+-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+-import me.mauromax.rutaconfiable.ui.theme.Background
+-import me.mauromax.rutaconfiable.ui.theme.ErrorContainer
+-import me.mauromax.rutaconfiable.ui.theme.OnErrorContainer
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+-import me.mauromax.rutaconfiable.ui.theme.Secondary
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
++import me.mauromax.rutaconfiable.ui.components.*
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
++import me.mauromax.rutaconfiable.ui.theme.*
+ 
+ @Composable
+ fun ForgotPasswordStep1Screen(
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ForgotPasswordStep2Screen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ForgotPasswordStep2Screen.kt
+index e960c6f..ee5b292 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ForgotPasswordStep2Screen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ForgotPasswordStep2Screen.kt
+@@ -1,30 +1,14 @@
+ package me.mauromax.rutaconfiable.ui.screens
+ 
+ import androidx.compose.foundation.clickable
+-import androidx.compose.foundation.layout.Arrangement
+-import androidx.compose.foundation.layout.Row
+-import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.padding
+-import androidx.compose.foundation.layout.size
+-import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.automirrored.filled.ArrowBack
+ import androidx.compose.material.icons.filled.AccessTime
+ import androidx.compose.material.icons.filled.MarkEmailRead
+-import androidx.compose.material3.Icon
+-import androidx.compose.material3.Scaffold
+-import androidx.compose.material3.Surface
+-import androidx.compose.material3.Text
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.LaunchedEffect
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.mutableIntStateOf
+-import androidx.compose.runtime.mutableStateOf
+-import androidx.compose.runtime.remember
+-import androidx.compose.runtime.rememberCoroutineScope
+-import androidx.compose.runtime.setValue
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.text.font.FontWeight
+@@ -33,27 +17,9 @@ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ import kotlinx.coroutines.delay
+ import kotlinx.coroutines.launch
+-import me.mauromax.rutaconfiable.ui.components.AppCard
+-import me.mauromax.rutaconfiable.ui.components.BodyText
+-import me.mauromax.rutaconfiable.ui.components.Hint
+-import me.mauromax.rutaconfiable.ui.components.PillTag
+-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+-import me.mauromax.rutaconfiable.ui.components.ScreenColumn
+-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
+-import me.mauromax.rutaconfiable.ui.components.SecondaryOutlinedButton
+-import me.mauromax.rutaconfiable.ui.components.SecurityAdviceBox
+-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+-import me.mauromax.rutaconfiable.ui.components.StepProgressBarCard
+-import me.mauromax.rutaconfiable.ui.components.TlsEncryptionBadge
+-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+-import me.mauromax.rutaconfiable.ui.theme.Background
+-import me.mauromax.rutaconfiable.ui.theme.ErrorContainer
+-import me.mauromax.rutaconfiable.ui.theme.OnErrorContainer
+-import me.mauromax.rutaconfiable.ui.theme.Outline
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+-import me.mauromax.rutaconfiable.ui.theme.Secondary
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
++import me.mauromax.rutaconfiable.ui.components.*
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
++import me.mauromax.rutaconfiable.ui.theme.*
+ 
+ private const val RESEND_COOLDOWN_SECONDS = 60
+ 
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/GoogleSignin.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/GoogleSignin.kt
+new file mode 100644
+index 0000000..eaec1e7
+--- /dev/null
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/GoogleSignin.kt
+@@ -0,0 +1,64 @@
++package me.mauromax.rutaconfiable.ui.screens
++
++import android.content.Context
++import androidx.credentials.CredentialManager
++import androidx.credentials.CustomCredential
++import androidx.credentials.GetCredentialRequest
++import androidx.credentials.exceptions.GetCredentialCancellationException
++import androidx.credentials.exceptions.GetCredentialException
++import androidx.credentials.exceptions.NoCredentialException
++import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
++import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
++import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
++
++/** Error de Google con un mensaje ya listo para mostrar al usuario. */
++class GoogleSignInException(message: String) : Exception(message)
++
++/**
++ * Pide a Android la cuenta de Google del usuario y devuelve su ID token, que luego se
++ * entrega a Firebase Auth ([me.mauromax.rutaconfiable.ui.data.AuthRepository.signInWithGoogle]).
++ */
++object GoogleSignIn {
++
++    /**
++     * [context] debe ser el de la Activity (en Compose, LocalContext.current) para poder
++     * mostrar el selector de cuentas.
++     *
++     * El ID de cliente web lo genera el plugin de Google Services como
++     * R.string.default_web_client_id, pero SOLO si google-services.json trae un cliente OAuth
++     * web (se obtiene activando Google en Firebase Auth y agregando el SHA-1 de la app).
++     * Se busca por nombre para que el proyecto compile aunque aún no esté configurado.
++     */
++    suspend fun getIdToken(context: Context): Result<String> = runCatching {
++        val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
++        if (resId == 0) {
++            throw GoogleSignInException(
++                "Google aún no está configurado en Firebase. Activa el método Google, agrega el SHA-1 " +
++                        "de la app y vuelve a descargar google-services.json."
++            )
++        }
++        val option = GetSignInWithGoogleOption.Builder(context.getString(resId)).build()
++        val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
++        val credential = CredentialManager.create(context).getCredential(context, request).credential
++
++        if (credential is CustomCredential &&
++            credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
++        ) {
++            GoogleIdTokenCredential.createFrom(credential.data).idToken
++        } else {
++            throw GoogleSignInException("No se pudo obtener la cuenta de Google.")
++        }
++    }
++
++    /** Mensaje para mostrar, o null si el usuario simplemente canceló (no se muestra error). */
++    fun friendlyError(e: Throwable): String? = when (e) {
++        is GetCredentialCancellationException -> null
++        is NoCredentialException ->
++            "No hay una cuenta de Google en este dispositivo. Agrega una en Ajustes e intenta de nuevo."
++        is GoogleSignInException -> e.message
++        is GoogleIdTokenParsingException -> "No se pudo leer la cuenta de Google."
++        is GetCredentialException -> "No se pudo iniciar sesión con Google. Intenta de nuevo."
++        else -> AuthRepository.friendlyError(e)
++    }
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoadsScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoadsScreen.kt
+index 7f80a8f..f151502 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoadsScreen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoadsScreen.kt
+@@ -62,7 +62,6 @@ import me.mauromax.rutaconfiable.ui.components.AppSwitch
+ import me.mauromax.rutaconfiable.ui.components.CardSectionContainer
+ import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+ import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+-import me.mauromax.rutaconfiable.ui.components.data.TripRepository
+ import me.mauromax.rutaconfiable.ui.theme.Background
+ import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
+ import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt
+index 599ac8a..0c346e0 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/LoginScreen.kt
+@@ -2,28 +2,13 @@ package me.mauromax.rutaconfiable.ui.screens
+ 
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.clickable
+-import androidx.compose.foundation.layout.Arrangement
+-import androidx.compose.foundation.layout.Column
+-import androidx.compose.foundation.layout.Row
+-import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.height
+-import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.filled.LocalShipping
+ import androidx.compose.material.icons.filled.Person
+-import androidx.compose.material3.Checkbox
+-import androidx.compose.material3.CheckboxDefaults
+-import androidx.compose.material3.Scaffold
+-import androidx.compose.material3.Surface
+-import androidx.compose.material3.Text
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.mutableStateOf
+-import androidx.compose.runtime.remember
+-import androidx.compose.runtime.rememberCoroutineScope
+-import androidx.compose.runtime.setValue
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.text.font.FontWeight
+@@ -31,32 +16,15 @@ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ import kotlinx.coroutines.launch
+-import me.mauromax.rutaconfiable.ui.components.AppCard
+-import me.mauromax.rutaconfiable.ui.components.BodyText
+-import me.mauromax.rutaconfiable.ui.components.FieldLabel
+-import me.mauromax.rutaconfiable.ui.components.PasswordTextField
+-import me.mauromax.rutaconfiable.ui.components.PhoneWithCountrySelectorField
+-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+-import me.mauromax.rutaconfiable.ui.components.ScreenColumn
+-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
+-import me.mauromax.rutaconfiable.ui.components.SegmentedSelector
+-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+-import me.mauromax.rutaconfiable.ui.components.TlsEncryptionBadge
+-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+-import me.mauromax.rutaconfiable.ui.theme.Background
+-import me.mauromax.rutaconfiable.ui.theme.ErrorContainer
+-import me.mauromax.rutaconfiable.ui.theme.OnErrorContainer
+-import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
+-import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+-import me.mauromax.rutaconfiable.ui.theme.Secondary
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
++import me.mauromax.rutaconfiable.ui.components.*
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
++import me.mauromax.rutaconfiable.ui.theme.*
+ 
+ @Composable
+ fun LoginScreen(
+     onBackClick: () -> Unit = {},
+-    onLoginSuccess: (role: RegistrationRole) -> Unit = {},
++    /** [verified] = false: la cuenta existe pero un administrador aún no la aprueba. */
++    onLoginSuccess: (role: RegistrationRole, verified: Boolean) -> Unit = { _, _ -> },
+     onForgotPasswordClick: () -> Unit = {},
+     onRegisterClick: (role: RegistrationRole) -> Unit = {}
+ ) {
+@@ -86,16 +54,16 @@ fun LoginScreen(
+         scope.launch {
+             AuthRepository.login(email, password)
+                 .onSuccess {
+-                    val actualRole = AuthRepository.getRole()
++                    val status = AuthRepository.getAccountStatus()
+                     isLoading = false
+-                    if (actualRole == selectedKey) {
+-                        onLoginSuccess(selectedRole)
++                    if (status != null && status.role == selectedKey) {
++                        onLoginSuccess(selectedRole, status.isVerified)
+                     } else {
+                         AuthRepository.logout()
+-                        errorMessage = if (actualRole == "client") {
+-                            "Esta cuenta es de Cliente. Cambia el selector de rol."
+-                        } else {
+-                            "Esta cuenta es de Conductor. Cambia el selector de rol."
++                        errorMessage = when (status?.role) {
++                            "client" -> "Esta cuenta es de Cliente. Cambia el selector de rol."
++                            "driver" -> "Esta cuenta es de Conductor. Cambia el selector de rol."
++                            else -> "No se pudo leer tu perfil. Revisa tu conexión e intenta de nuevo."
+                         }
+                     }
+                 }
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/MyShipmentsScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/MyShipmentsScreen.kt
+index d051793..cbe220f 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/MyShipmentsScreen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/MyShipmentsScreen.kt
+@@ -22,7 +22,7 @@ import me.mauromax.rutaconfiable.ui.components.BodyText
+ import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+ import me.mauromax.rutaconfiable.ui.components.ScreenTitle
+ import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+-import me.mauromax.rutaconfiable.ui.components.data.Booking
++import me.mauromax.rutaconfiable.ui.data.Booking
+ import me.mauromax.rutaconfiable.ui.theme.*
+ 
+ /** "Cargas" del cliente: por ahora solo el estado vacío; luego mostrará sus reservas. */
+@@ -77,23 +77,29 @@ fun MyShipmentsScreen(
+                     )
+                 }
+             } else {
+-                bookings.forEach { BookingCard(it, showClient = false) }
++                bookings.forEach { BookingCard(it) }
+             }
+         }
+     }
+ }
+ 
+-/** Tarjeta de una reserva. El conductor ve quién reservó; el cliente ve solo lo suyo. */
++/** Tarjeta de una reserva del cliente: ruta, fecha, lo reservado y su estado. */
+ @Composable
+-fun BookingCard(b: Booking, showClient: Boolean) {
+-    val amount = if (b.kind == "seat") "${b.quantity} cupo(s)" else "${b.quantity} kg de flete"
++fun BookingCard(b: Booking) {
++    val amount = listOfNotNull(
++        if (b.seats > 0) "${b.seats} cupo(s)" else null,
++        if (b.cargoKg > 0) "${b.cargoKg} kg de flete" else null
++    ).joinToString(" · ")
+     AppCard(Modifier.fillMaxWidth(), spacing = 4.dp) {
+-        Text(b.route, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+         Text(
+-            if (showClient) "${b.clientName} · $amount" else amount,
+-            fontSize = 12.sp, color = OnSurfaceVariant
++            "${b.origin} → ${b.destination}",
++            fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryLight
++        )
++        Text(amount, fontSize = 12.sp, color = OnSurfaceVariant)
++        Text(
++            listOf(b.date, b.departure).filter { it.isNotBlank() }.joinToString(" · "),
++            fontSize = 11.sp, color = OnSurfaceVariant
+         )
+-        if (b.date.isNotBlank()) Text(b.date, fontSize = 11.sp, color = OnSurfaceVariant)
+     }
+ }
+ 
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ProfileScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ProfileScreen.kt
+index 555f012..86f80e5 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ProfileScreen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/ProfileScreen.kt
+@@ -3,35 +3,15 @@ package me.mauromax.rutaconfiable.ui.screens
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+-import androidx.compose.foundation.layout.Arrangement
+-import androidx.compose.foundation.layout.Column
+-import androidx.compose.foundation.layout.Row
+-import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxSize
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.height
+-import androidx.compose.foundation.layout.padding
+-import androidx.compose.foundation.layout.size
+-import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.rememberScrollState
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.automirrored.filled.Logout
+-import androidx.compose.material.icons.filled.AccountCircle
+-import androidx.compose.material.icons.filled.Add
+-import androidx.compose.material.icons.filled.Event
+-import androidx.compose.material.icons.filled.Inventory2
+-import androidx.compose.material.icons.filled.LocalShipping
+-import androidx.compose.material.icons.filled.Search
+-import androidx.compose.material.icons.filled.Star
+-import androidx.compose.material3.Icon
+-import androidx.compose.material3.IconButton
+-import androidx.compose.material3.LinearProgressIndicator
+-import androidx.compose.material3.Scaffold
+-import androidx.compose.material3.Surface
+-import androidx.compose.material3.Text
+-import androidx.compose.runtime.Composable
++import androidx.compose.material.icons.filled.*
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.Color
+@@ -46,21 +26,7 @@ import me.mauromax.rutaconfiable.ui.components.AppBottomBar
+ import me.mauromax.rutaconfiable.ui.components.AppCard
+ import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+ import me.mauromax.rutaconfiable.ui.components.StatusTag
+-import me.mauromax.rutaconfiable.ui.components.data.Booking
+-import me.mauromax.rutaconfiable.ui.theme.Background
+-import me.mauromax.rutaconfiable.ui.theme.CardBackground
+-import me.mauromax.rutaconfiable.ui.theme.OnSecondaryContainer
+-import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
+-import me.mauromax.rutaconfiable.ui.theme.Outline
+-import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+-import me.mauromax.rutaconfiable.ui.theme.Secondary
+-import me.mauromax.rutaconfiable.ui.theme.SecondaryContainer
+-import me.mauromax.rutaconfiable.ui.theme.StatusPending
+-import me.mauromax.rutaconfiable.ui.theme.StatusPendingBg
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceVariant
++import me.mauromax.rutaconfiable.ui.theme.*
+ 
+ /** Contadores del perfil. Un usuario nuevo empieza con todo en 0. */
+ data class ProfileStats(
+@@ -71,10 +37,17 @@ data class ProfileStats(
+     val ratingCount: Int = 0
+ )
+ 
++/** Una reserva en el manifiesto: quién, qué reservó y en qué estado está. */
++data class ManifestEntry(val name: String, val detail: String, val status: String)
++
+ data class NextTrip(
+     val id: String, val leavesIn: String, val from: String, val to: String,
+     val departure: String, val arrival: String, val duration: String, val via: String,
+-    val inspection: Float, val vehicle: String, val cargo: String, val seats: String
++    /** Qué parte del viaje está reservada (0..1). Null si no aplica (vista del cliente). */
++    val occupancy: Float?,
++    val vehicle: String, val cargo: String, val seats: String,
++    val date: String = "",
++    val entries: List<ManifestEntry> = emptyList()
+ )
+ 
+ data class Trip(
+@@ -90,7 +63,6 @@ fun ProfileScreen(
+     stats: ProfileStats = ProfileStats(),
+     nextTrip: NextTrip? = null,
+     trips: List<Trip> = emptyList(),
+-    bookings: List<Booking> = emptyList(),
+     onLogout: () -> Unit = {},
+     onNavigateToHome: () -> Unit = {},
+     onNavigateToTrips: () -> Unit = {},
+@@ -124,17 +96,13 @@ fun ProfileScreen(
+                 Spacer(Modifier.width(10.dp))
+                 Column(Modifier.weight(1f)) {
+                     Text("Bienvenido", fontSize = 12.sp, color = OnSurfaceVariant)
+-                    Text(
+-                        userName, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+-                        color = PrimaryLight, fontFamily = FontFamily.Serif
+-                    )
++                    Text(userName, fontSize = 18.sp, fontWeight = FontWeight.Bold,
++                        color = PrimaryLight, fontFamily = FontFamily.Serif)
+                     Row(verticalAlignment = Alignment.CenterVertically) {
+                         Icon(Icons.Default.Star, null, Modifier.size(14.dp), tint = Secondary)
+                         Spacer(Modifier.width(2.dp))
+-                        Text(
+-                            "%.1f · %d calificaciones".format(stats.rating, stats.ratingCount),
+-                            fontSize = 11.sp, color = OnSurfaceVariant
+-                        )
++                        Text("%.1f · %d calificaciones".format(stats.rating, stats.ratingCount),
++                            fontSize = 11.sp, color = OnSurfaceVariant)
+                     }
+                 }
+                 StatusTag(
+@@ -147,21 +115,21 @@ fun ProfileScreen(
+             }
+ 
+             // Resumen
+-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+-                StatCard("Viajes activos", stats.active, Modifier.weight(1f))
+-                StatCard("En curso", stats.inProgress, Modifier.weight(1f))
+-                StatCard("Completados", stats.completed, Modifier.weight(1f))
++            if (isDriver) {
++                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
++                    StatCard("Viajes activos", stats.active, Modifier.weight(1f))
++                    StatCard("En curso", stats.inProgress, Modifier.weight(1f))
++                    StatCard("Completados", stats.completed, Modifier.weight(1f))
++                }
+             }
+ 
+             // Próximo viaje
+             SectionHeader("Próximo Viaje Asignado") {
+                 nextTrip?.let { StatusTag(it.leavesIn, StatusPendingBg, StatusPending) }
+             }
+-            if (nextTrip != null) NextTripCard(nextTrip)
+-            else EmptyState(
+-                Icons.Default.LocalShipping,
+-                if (isDriver) "Aún no tienes viajes asignados." else "Aún no tienes reservas ni envíos."
+-            )
++            if (nextTrip != null) NextTripCard(nextTrip, isDriver)
++            else EmptyState(Icons.Default.LocalShipping,
++                if (isDriver) "Aún no tienes viajes asignados." else "Aún no tienes reservas ni envíos.")
+ 
+             // Acciones rápidas
+             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+@@ -186,26 +154,13 @@ fun ProfileScreen(
+             // Viajes recientes
+             SectionHeader("Viajes Programados Recientes") {
+                 if (trips.isNotEmpty()) {
+-                    Text(
+-                        "Ver todos (${trips.size})", fontSize = 12.sp,
++                    Text("Ver todos (${trips.size})", fontSize = 12.sp,
+                         fontWeight = FontWeight.Bold, color = Secondary,
+                         modifier = Modifier.clickable { onNavigateToTrips() })
+                 }
+             }
+-            if (trips.isEmpty()) EmptyState(
+-                Icons.Default.Event,
+-                "Aún no tienes viajes programados."
+-            )
++            if (trips.isEmpty()) EmptyState(Icons.Default.Event, "Aún no tienes viajes programados.")
+             else trips.forEach { TripRow(it) }
+-
+-
+-            // Reservas recibidas (solo conductor)
+-            if (isDriver) {
+-                    SectionHeader("Reservas Recibidas") {}
+-                    if (bookings.isEmpty()) EmptyState(Icons.Default.Inventory2, "Aún no tienes reservas.")
+-                    else bookings.forEach { BookingCard(it, showClient = true) }
+-                }
+-
+         }
+     }
+ }
+@@ -224,10 +179,8 @@ private fun EmptyState(icon: ImageVector, text: String) {
+ @Composable
+ private fun SectionHeader(title: String, trailing: @Composable () -> Unit) {
+     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+-        Text(
+-            title, fontSize = 17.sp, fontWeight = FontWeight.Bold,
+-            color = PrimaryLight, fontFamily = FontFamily.Serif
+-        )
++        Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold,
++            color = PrimaryLight, fontFamily = FontFamily.Serif)
+         trailing()
+     }
+ }
+@@ -236,15 +189,16 @@ private fun SectionHeader(title: String, trailing: @Composable () -> Unit) {
+ private fun StatCard(label: String, value: Int, modifier: Modifier = Modifier) {
+     AppCard(modifier) {
+         Text(label, fontSize = 11.sp, color = OnSurfaceVariant)
+-        Text(
+-            value.toString(), fontSize = 26.sp, fontWeight = FontWeight.Bold,
+-            color = PrimaryLight, fontFamily = FontFamily.Serif
+-        )
++        Text(value.toString(), fontSize = 26.sp, fontWeight = FontWeight.Bold,
++            color = PrimaryLight, fontFamily = FontFamily.Serif)
+     }
+ }
+ 
+ @Composable
+-private fun NextTripCard(t: NextTrip) {
++private fun NextTripCard(t: NextTrip, isDriver: Boolean) {
++    var showManifest by remember(t.id) { mutableStateOf(false) }
++    if (showManifest) ManifestDialog(t, isDriver) { showManifest = false }
++
+     Surface(
+         shape = RoundedCornerShape(12.dp),
+         color = CardBackground,
+@@ -253,30 +207,17 @@ private fun NextTripCard(t: NextTrip) {
+     ) {
+         Column {
+             Row(
+-                Modifier
+-                    .fillMaxWidth()
+-                    .background(PrimaryLight)
+-                    .padding(horizontal = 14.dp, vertical = 10.dp),
++                Modifier.fillMaxWidth().background(PrimaryLight).padding(horizontal = 14.dp, vertical = 10.dp),
+                 Arrangement.SpaceBetween, Alignment.CenterVertically
+             ) {
+-                Text(
+-                    "ID: ${t.id}",
+-                    color = Color.White,
+-                    fontSize = 13.sp,
+-                    fontWeight = FontWeight.Bold
+-                )
+-                StatusTag("Confirmado · Seguro", SecondaryContainer, OnSecondaryContainer)
++                Text("ID: ${t.id}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
++                StatusTag(if (isDriver) "Publicado" else "Reservado", SecondaryContainer, OnSecondaryContainer)
+             }
+             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                     Column {
+                         Text("Salida", fontSize = 11.sp, color = OnSurfaceVariant)
+-                        Text(
+-                            t.from,
+-                            fontSize = 16.sp,
+-                            fontWeight = FontWeight.Bold,
+-                            color = PrimaryLight
+-                        )
++                        Text(t.from, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                         Text(t.departure, fontSize = 11.sp, color = OnSurfaceVariant)
+                     }
+                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+@@ -286,47 +227,91 @@ private fun NextTripCard(t: NextTrip) {
+                     }
+                     Column(horizontalAlignment = Alignment.End) {
+                         Text("Llegada", fontSize = 11.sp, color = OnSurfaceVariant)
+-                        Text(
+-                            t.to,
+-                            fontSize = 16.sp,
+-                            fontWeight = FontWeight.Bold,
+-                            color = PrimaryLight
+-                        )
++                        Text(t.to, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                         Text(t.arrival, fontSize = 11.sp, color = OnSurfaceVariant)
+                     }
+                 }
+                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+-                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+-                        Text(
+-                            "Inspección de carga",
+-                            fontSize = 12.sp,
+-                            fontWeight = FontWeight.SemiBold
+-                        )
+-                        Text(
+-                            "${(t.inspection * 100).toInt()}% listo", fontSize = 12.sp,
+-                            fontWeight = FontWeight.Bold, color = Secondary
++                    t.occupancy?.let { occupancy ->
++                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
++                            Text("Ocupación del viaje", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
++                            Text("${(occupancy * 100).toInt()}% reservado", fontSize = 12.sp,
++                                fontWeight = FontWeight.Bold, color = Secondary)
++                        }
++                        LinearProgressIndicator(
++                            progress = { occupancy },
++                            modifier = Modifier.fillMaxWidth().height(6.dp),
++                            color = SecondaryContainer,
++                            trackColor = SurfaceVariant
+                         )
+                     }
+-                    LinearProgressIndicator(
+-                        progress = { t.inspection },
+-                        modifier = Modifier
+-                            .fillMaxWidth()
+-                            .height(6.dp),
+-                        color = SecondaryContainer,
+-                        trackColor = SurfaceVariant
+-                    )
+                     Text("Vehículo: ${t.vehicle}", fontSize = 11.sp, color = OnSurfaceVariant)
+                 }
+                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+-                    InfoBox("Carga reservada", t.cargo, Modifier.weight(1f))
+-                    InfoBox("Cupos pasajeros", t.seats, Modifier.weight(1f))
++                    InfoBox(if (isDriver) "Carga reservada" else "Tu carga", t.cargo, Modifier.weight(1f))
++                    InfoBox(if (isDriver) "Cupos reservados" else "Tus cupos", t.seats, Modifier.weight(1f))
+                 }
+-                PrimaryButton(text = "Ver Manifiesto y Hoja de Ruta", onClick = {})
++                PrimaryButton(text = "Ver Manifiesto y Hoja de Ruta", onClick = { showManifest = true })
+             }
+         }
+     }
+ }
+ 
++/** Hoja de ruta del viaje y lista de reservas (manifiesto). */
++@Composable
++private fun ManifestDialog(t: NextTrip, isDriver: Boolean, onDismiss: () -> Unit) {
++    AlertDialog(
++        onDismissRequest = onDismiss,
++        title = {
++            Text("Manifiesto y Hoja de Ruta", fontWeight = FontWeight.Bold, color = PrimaryLight)
++        },
++        text = {
++            Column(
++                Modifier.verticalScroll(rememberScrollState()),
++                verticalArrangement = Arrangement.spacedBy(12.dp)
++            ) {
++                ManifestLine("Viaje", t.id)
++                ManifestLine("Ruta", "${t.from} → ${t.to}")
++                ManifestLine("Salida", listOf(t.date, t.departure).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "—" })
++                ManifestLine("Vehículo", t.vehicle.ifBlank { "—" })
++                ManifestLine("Carga", t.cargo)
++                ManifestLine("Cupos", t.seats)
++                if (t.duration != "—" || t.via != "—") {
++                    ManifestLine("Recorrido", listOf(t.via, t.duration).filter { it != "—" }.joinToString(" · "))
++                }
++
++                HorizontalDivider(color = OutlineVariant)
++                Text(
++                    if (isDriver) "Reservas (${t.entries.size})" else "Tu reserva",
++                    fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight
++                )
++                if (t.entries.isEmpty()) {
++                    Text("Aún no hay reservas para este viaje.", fontSize = 12.sp, color = OnSurfaceVariant)
++                } else {
++                    t.entries.forEach { e ->
++                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
++                            Column(Modifier.weight(1f)) {
++                                Text(e.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
++                                Text(e.detail, fontSize = 11.sp, color = OnSurfaceVariant)
++                            }
++                            StatusTag(e.status, StatusPendingBg, StatusPending)
++                        }
++                    }
++                }
++            }
++        },
++        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } }
++    )
++}
++
++@Composable
++private fun ManifestLine(label: String, value: String) {
++    Column {
++        Text(label.uppercase(), fontSize = 10.sp, color = OnSurfaceVariant)
++        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = PrimaryLight)
++    }
++}
++
+ @Composable
+ private fun InfoBox(label: String, value: String, modifier: Modifier = Modifier) {
+     Surface(modifier, color = SurfaceSoft, shape = RoundedCornerShape(8.dp)) {
+@@ -346,23 +331,10 @@ private fun QuickAction(
+     onClick: () -> Unit = {}
+ ) {
+     AppCard(modifier.clickable { onClick() }) {
+-        Icon(icon, null, tint = Secondary, modifier = Modifier.fillMaxWidth())
++        Icon(icon, null, tint = Secondary)
+         Spacer(Modifier.height(6.dp))
+-        Text(
+-            title,
+-            modifier = Modifier.fillMaxWidth(),
+-            textAlign = TextAlign.Center,
+-            fontSize = 13.sp,
+-            fontWeight = FontWeight.Bold,
+-            color = PrimaryLight
+-        )
+-        Text(
+-            subtitle,
+-            modifier = Modifier.fillMaxWidth(),
+-            textAlign = TextAlign.Center,
+-            fontSize = 11.sp,
+-            color = OnSurfaceVariant
+-        )
++        Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
++        Text(subtitle, fontSize = 11.sp, color = OnSurfaceVariant)
+     }
+ }
+ 
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt
+index 094214a..007fc8f 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/RegistrationScreen.kt
+@@ -8,73 +8,16 @@ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.clickable
+-import androidx.compose.foundation.layout.Arrangement
+-import androidx.compose.foundation.layout.Box
+-import androidx.compose.foundation.layout.Column
+-import androidx.compose.foundation.layout.PaddingValues
+-import androidx.compose.foundation.layout.Row
+-import androidx.compose.foundation.layout.RowScope
+-import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxSize
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.height
+-import androidx.compose.foundation.layout.imePadding
+-import androidx.compose.foundation.layout.padding
+-import androidx.compose.foundation.layout.size
+-import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.rememberScrollState
+ import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material.icons.Icons
+-import androidx.compose.material.icons.filled.Add
+-import androidx.compose.material.icons.filled.AirportShuttle
+-import androidx.compose.material.icons.filled.ArrowDropDown
+-import androidx.compose.material.icons.filled.AssignmentInd
+-import androidx.compose.material.icons.filled.Badge
+-import androidx.compose.material.icons.filled.CalendarToday
+-import androidx.compose.material.icons.filled.CheckCircle
+-import androidx.compose.material.icons.filled.Commute
+-import androidx.compose.material.icons.filled.DateRange
+-import androidx.compose.material.icons.filled.Description
+-import androidx.compose.material.icons.filled.DirectionsBus
+-import androidx.compose.material.icons.filled.DirectionsCar
+-import androidx.compose.material.icons.filled.Email
+-import androidx.compose.material.icons.filled.Face
+-import androidx.compose.material.icons.filled.FilePresent
+-import androidx.compose.material.icons.filled.FileUpload
+-import androidx.compose.material.icons.filled.Inventory2
+-import androidx.compose.material.icons.filled.LocalShipping
+-import androidx.compose.material.icons.filled.Person
+-import androidx.compose.material.icons.filled.PhotoCamera
+-import androidx.compose.material.icons.filled.Pin
+-import androidx.compose.material.icons.filled.Subtitles
+-import androidx.compose.material.icons.filled.Verified
+-import androidx.compose.material.icons.filled.VerifiedUser
+-import androidx.compose.material3.Button
+-import androidx.compose.material3.ButtonDefaults
+-import androidx.compose.material3.Checkbox
+-import androidx.compose.material3.CheckboxDefaults
+-import androidx.compose.material3.DatePicker
+-import androidx.compose.material3.DatePickerDialog
+-import androidx.compose.material3.DropdownMenu
+-import androidx.compose.material3.DropdownMenuItem
+-import androidx.compose.material3.ExperimentalMaterial3Api
+-import androidx.compose.material3.Icon
+-import androidx.compose.material3.IconButton
+-import androidx.compose.material3.Scaffold
+-import androidx.compose.material3.SelectableDates
+-import androidx.compose.material3.Surface
+-import androidx.compose.material3.Text
+-import androidx.compose.material3.TextButton
+-import androidx.compose.material3.rememberDatePickerState
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.mutableStateOf
+-import androidx.compose.runtime.remember
+-import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.material.icons.filled.*
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
+ import androidx.compose.runtime.saveable.rememberSaveable
+-import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.Color
+@@ -85,41 +28,9 @@ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ import kotlinx.coroutines.launch
+-import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
+-import me.mauromax.rutaconfiable.ui.components.BodyText
+-import me.mauromax.rutaconfiable.ui.components.CardSectionContainer
+-import me.mauromax.rutaconfiable.ui.components.FieldLabel
+-import me.mauromax.rutaconfiable.ui.components.Hint
+-import me.mauromax.rutaconfiable.ui.components.PasswordTextField
+-import me.mauromax.rutaconfiable.ui.components.PhoneWithCountrySelectorField
+-import me.mauromax.rutaconfiable.ui.components.PillTag
+-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
+-import me.mauromax.rutaconfiable.ui.components.SecondaryOutlinedButton
+-import me.mauromax.rutaconfiable.ui.components.SegmentedSelector
+-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+-import me.mauromax.rutaconfiable.ui.components.StatusTag
+-import me.mauromax.rutaconfiable.ui.components.TlsEncryptionBadge
+-import me.mauromax.rutaconfiable.ui.components.VehicleTypeChip
+-import me.mauromax.rutaconfiable.ui.components.dashedBorder
+-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
+-import me.mauromax.rutaconfiable.ui.theme.Background
+-import me.mauromax.rutaconfiable.ui.theme.ErrorContainer
+-import me.mauromax.rutaconfiable.ui.theme.OnErrorContainer
+-import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
+-import me.mauromax.rutaconfiable.ui.theme.Outline
+-import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+-import me.mauromax.rutaconfiable.ui.theme.Secondary
+-import me.mauromax.rutaconfiable.ui.theme.SecondaryContainer
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailableBg
+-import me.mauromax.rutaconfiable.ui.theme.StatusPending
+-import me.mauromax.rutaconfiable.ui.theme.StatusPendingBg
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceVariant
++import me.mauromax.rutaconfiable.ui.components.*
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
++import me.mauromax.rutaconfiable.ui.theme.*
+ import java.text.SimpleDateFormat
+ import java.util.Date
+ import java.util.Locale
+@@ -218,7 +129,7 @@ private fun isValidDocument(type: String, number: String): Boolean {
+ 
+ private fun isValidLicense(v: String) = v.filter { it.isLetterOrDigit() }.length >= 6
+ 
+-private fun isValidPlate(v: String) = Regex("^[A-Z]{3}-?(\\d{3}|\\d{2}[A-Z])$").matches(v.trim().uppercase())
++private fun isValidPlate(v: String) = Regex("^[A-Z]{3}-?\\d{3}$").matches(v.trim().uppercase())
+ 
+ private fun isValidSoatNumber(v: String) = v.trim().length >= 6 && v.trim().all { it.isDigit() }
+ 
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/TripRepository.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/TripRepository.kt
+similarity index 54%
+rename from app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/TripRepository.kt
+rename to app/src/main/java/me/mauromax/rutaconfiable/ui/screens/TripRepository.kt
+index f8828f6..3634a01 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/components/data/TripRepository.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/TripRepository.kt
+@@ -1,4 +1,4 @@
+-package me.mauromax.rutaconfiable.ui.components.data
++package me.mauromax.rutaconfiable.ui.screens
+ 
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateListOf
+@@ -11,21 +11,8 @@ import com.google.firebase.firestore.FirebaseFirestoreException
+ import com.google.firebase.firestore.ListenerRegistration
+ import com.google.firebase.firestore.Query
+ import kotlinx.coroutines.tasks.await
+-import me.mauromax.rutaconfiable.ui.components.data.TripRepository.trips
+-import me.mauromax.rutaconfiable.ui.screens.AvailableTrip
+ import java.security.SecureRandom
+ 
+-/** Reserva hecha por un cliente en un viaje. [kind] es "seat" (cupos) o "cargo" (kg). */
+-data class Booking(
+-    val id: String,
+-    val route: String,
+-    val date: String,
+-    val clientName: String,
+-    val kind: String,
+-    val quantity: Int,
+-    val createdAt: Long
+-)
+-
+ /** Error con un mensaje ya listo para mostrar al usuario. */
+ class TripException(message: String) : Exception(message)
+ 
+@@ -89,9 +76,23 @@ object TripRepository {
+         val uid = auth.currentUser?.uid
+             ?: throw TripException("Inicia sesión para publicar un viaje.")
+ 
+-        val driverName = runCatching {
+-            db.collection("users").document(uid).get().await().getString("name")
+-        }.getOrNull()?.takeIf { it.isNotBlank() } ?: trip.driver
++        // Solo publican conductores con la cuenta aprobada por un administrador.
++        // (Firestore lo exige también en firestore.rules; esto da un mensaje claro.)
++        val userDoc = db.collection("users").document(uid).get().await()
++        if (userDoc.getString("role") != "driver") {
++            throw TripException("Solo los conductores pueden publicar viajes.")
++        }
++        if (userDoc.getBoolean("verified") != true) {
++            throw TripException(
++                "Tu cuenta aún no está verificada. Podrás publicar viajes cuando sea aprobada."
++            )
++        }
++        val driverName = userDoc.getString("name")?.takeIf { it.isNotBlank() } ?: trip.driver
++        // Teléfono con indicativo, solo dígitos (ej. 573104567890), para Llamar y WhatsApp.
++        val phoneDigits = userDoc.getString("phone").orEmpty().filter { it.isDigit() }
++        val countryDigits = userDoc.getString("phoneCountryCode").orEmpty().filter { it.isDigit() }
++            .ifEmpty { "57" }
++        val driverPhone = if (phoneDigits.isEmpty()) "" else countryDigits + phoneDigits
+ 
+         repeat(5) {
+             val code = newCode()
+@@ -101,11 +102,13 @@ object TripRepository {
+                 if (tx.get(ref).exists()) {
+                     false
+                 } else {
+-                    tx.set(ref, trip.toMap(uid, driverName))
++                    tx.set(ref, trip.toMap(uid, driverName, driverVerified = true, driverPhone = driverPhone))
+                     true
+                 }
+             }.await()
+-            if (created) return@runCatching trip.copy(id = code, driver = driverName)
++            if (created) return@runCatching trip.copy(
++                id = code, driver = driverName, driverVerified = true, driverPhone = driverPhone
++            )
+         }
+         throw TripException("No se pudo generar el código del viaje. Intenta de nuevo.")
+     }
+@@ -123,88 +126,12 @@ object TripRepository {
+             .sortedByDescending { it.createdAt }
+     }
+ 
+-    /**
+-     * Reserva cupos ([kind] = "seat") o kilos de flete ([kind] = "cargo") en un viaje.
+-     * En una sola transacción descuenta lo reservado del viaje y guarda la reserva
+-     * en la colección "bookings". Así dos clientes no pueden reservar el mismo cupo.
+-     */
+-    suspend fun book(trip: AvailableTrip, kind: String, quantity: Int): Result<Unit> = runCatching {
+-        val uid = auth.currentUser?.uid
+-            ?: throw TripException("Inicia sesión para reservar.")
+-        if (quantity <= 0) throw TripException("Indica una cantidad válida.")
+-        if (trip.driverUid == uid) throw TripException("No puedes reservar tu propio viaje.")
+-
+-        val clientName = runCatching {
+-            db.collection("users").document(uid).get().await().getString("name")
+-        }.getOrNull().orEmpty()
+-
+-        val field = if (kind == "seat") "seatsFree" else "cargoFreeKg"
+-        val tripRef = db.collection(COLLECTION).document(trip.id)
+-        val bookingRef = db.collection("bookings").document()
+-
+-        // Devuelve (se pudo reservar, cuántos quedaban libres).
+-        val (booked, free) = db.runTransaction<Pair<Boolean, Long>> { tx ->
+-            val snap = tx.get(tripRef)
+-            val available = snap.getLong(field) ?: 0L
+-            if (!snap.exists() || quantity > available) {
+-                Pair(false, available)
+-            } else {
+-                tx.update(tripRef, field, available - quantity)
+-                tx.set(
+-                    bookingRef, mapOf(
+-                        "tripId" to trip.id,
+-                        "route" to trip.road,
+-                        "date" to trip.date,
+-                        "driverUid" to trip.driverUid,
+-                        "clientUid" to uid,
+-                        "clientName" to clientName,
+-                        "kind" to kind,
+-                        "quantity" to quantity,
+-                        "status" to "pending",
+-                        "createdAt" to System.currentTimeMillis()
+-                    )
+-                )
+-                Pair(true, available - quantity)
+-            }
+-        }.await()
+-
+-        if (!booked) throw TripException("Ya no hay disponibilidad suficiente (quedan $free).")
+-    }
+-
+-    /**
+-     * Reservas del usuario con sesión: las que recibió (conductor) o las que hizo (cliente),
+-     * de la más reciente a la más antigua.
+-     */
+-    suspend fun loadMyBookings(asDriver: Boolean): Result<List<Booking>> = runCatching {
+-        val uid = auth.currentUser?.uid
+-            ?: throw TripException("Inicia sesión para ver tus reservas.")
+-        db.collection("bookings")
+-            .whereEqualTo(if (asDriver) "driverUid" else "clientUid", uid)
+-            .get()
+-            .await()
+-            .documents
+-            .map {
+-                Booking(
+-                    id = it.id,
+-                    route = it.getString("route") ?: it.getString("tripId").orEmpty(),
+-                    date = it.getString("date").orEmpty(),
+-                    clientName = it.getString("clientName").orEmpty(),
+-                    kind = it.getString("kind").orEmpty(),
+-                    quantity = it.getLong("quantity")?.toInt() ?: 0,
+-                    createdAt = it.getLong("createdAt") ?: 0L
+-                )
+-            }
+-            .sortedByDescending { it.createdAt }
+-    }
+-
+     fun friendlyError(e: Throwable): String = when {
+         e is TripException -> e.message ?: "No se pudo completar. Intenta de nuevo."
+         e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.UNAVAILABLE ->
+             "Sin conexión a internet."
+-
+         e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+             "No tienes permiso para esta acción."
+-
+         else -> "No se pudo completar. Intenta de nuevo."
+     }
+ 
+@@ -212,34 +139,40 @@ object TripRepository {
+         CharArray(CODE_LENGTH) { CODE_ALPHABET[random.nextInt(CODE_ALPHABET.length)] }
+     )
+ 
+-    private fun AvailableTrip.toMap(driverUid: String, driverName: String): Map<String, Any> =
+-        mapOf(
+-            "driverUid" to driverUid,
+-            "driver" to driverName,
+-            "departure" to departure,
+-            "rating" to rating,
+-            "verifiedTrips" to verifiedTrips,
+-            "vehicle" to vehicle,
+-            "vehicleDetail" to vehicleDetail,
+-            "plate" to plate,
+-            "cargoFreeKg" to cargoFreeKg,
+-            "cargoTotalKg" to cargoTotalKg,
+-            "cargoNote" to cargoNote,
+-            "seatsFree" to seatsFree,
+-            "seatsTotal" to seatsTotal,
+-            "seatsNote" to seatsNote,
+-            "cargoPrice" to cargoPrice,
+-            "seatPrice" to seatPrice,
+-            "distance" to distance,
+-            "duration" to duration,
+-            "road" to road,
+-            "origin" to origin,
+-            "destination" to destination,
+-            "date" to date,
+-            "hasCargo" to hasCargo,
+-            "hasSeats" to hasSeats,
+-            "createdAt" to System.currentTimeMillis()
+-        )
++    private fun AvailableTrip.toMap(
++        driverUid: String,
++        driverName: String,
++        driverVerified: Boolean,
++        driverPhone: String
++    ): Map<String, Any> = mapOf(
++        "driverUid" to driverUid,
++        "driverPhone" to driverPhone,
++        "driverVerified" to driverVerified,
++        "driver" to driverName,
++        "departure" to departure,
++        "rating" to rating,
++        "verifiedTrips" to verifiedTrips,
++        "vehicle" to vehicle,
++        "vehicleDetail" to vehicleDetail,
++        "plate" to plate,
++        "cargoFreeKg" to cargoFreeKg,
++        "cargoTotalKg" to cargoTotalKg,
++        "cargoNote" to cargoNote,
++        "seatsFree" to seatsFree,
++        "seatsTotal" to seatsTotal,
++        "seatsNote" to seatsNote,
++        "cargoPrice" to cargoPrice,
++        "seatPrice" to seatPrice,
++        "distance" to distance,
++        "duration" to duration,
++        "road" to road,
++        "origin" to origin,
++        "destination" to destination,
++        "date" to date,
++        "hasCargo" to hasCargo,
++        "hasSeats" to hasSeats,
++        "createdAt" to System.currentTimeMillis()
++    )
+ 
+     private fun DocumentSnapshot.toTrip(): AvailableTrip? = runCatching {
+         AvailableTrip(
+@@ -268,7 +201,9 @@ object TripRepository {
+             hasCargo = getBoolean("hasCargo") ?: true,
+             hasSeats = getBoolean("hasSeats") ?: true,
+             driverUid = getString("driverUid").orEmpty(),
+-            createdAt = getLong("createdAt") ?: 0L
++            createdAt = getLong("createdAt") ?: 0L,
++            driverVerified = getBoolean("driverVerified") ?: false,
++            driverPhone = getString("driverPhone").orEmpty()
+         )
+     }.getOrNull()
+ }
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/TripScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/TripScreen.kt
+index cab12e0..1560ced 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/TripScreen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/TripScreen.kt
+@@ -2,78 +2,37 @@ package me.mauromax.rutaconfiable.ui.screens
+ 
+ import android.Manifest
+ import android.content.Context
++import android.content.Intent
++import android.net.Uri
+ import android.content.pm.PackageManager
+ import android.location.Location
+-import android.widget.Toast
+ import androidx.activity.compose.rememberLauncherForActivityResult
+ import androidx.activity.result.contract.ActivityResultContracts
++import androidx.core.content.ContextCompat
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.platform.LocalInspectionMode
++import com.google.android.gms.location.LocationServices
++import com.google.android.gms.location.LocationCallback
++import com.google.android.gms.location.LocationRequest
++import com.google.android.gms.location.LocationResult
++import com.google.android.gms.location.Priority
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.Canvas
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.horizontalScroll
+-import androidx.compose.foundation.layout.Arrangement
+-import androidx.compose.foundation.layout.Box
+-import androidx.compose.foundation.layout.Column
+-import androidx.compose.foundation.layout.ColumnScope
+-import androidx.compose.foundation.layout.Row
+-import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxSize
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.height
+-import androidx.compose.foundation.layout.padding
+-import androidx.compose.foundation.layout.size
+-import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.text.KeyboardOptions
+ import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.foundation.shape.RoundedCornerShape
+-import androidx.compose.foundation.text.KeyboardOptions
+ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.automirrored.filled.Chat
+ import androidx.compose.material.icons.automirrored.filled.Sort
+-import androidx.compose.material.icons.filled.AccountCircle
+-import androidx.compose.material.icons.filled.Badge
+-import androidx.compose.material.icons.filled.CalendarMonth
+-import androidx.compose.material.icons.filled.Call
+-import androidx.compose.material.icons.filled.DirectionsCar
+-import androidx.compose.material.icons.filled.EventSeat
+-import androidx.compose.material.icons.filled.GpsFixed
+-import androidx.compose.material.icons.filled.Groups
+-import androidx.compose.material.icons.filled.Inventory2
+-import androidx.compose.material.icons.filled.LocalShipping
+-import androidx.compose.material.icons.filled.LocationOn
+-import androidx.compose.material.icons.filled.Map
+-import androidx.compose.material.icons.filled.MyLocation
+-import androidx.compose.material.icons.filled.Place
+-import androidx.compose.material.icons.filled.Route
+-import androidx.compose.material.icons.filled.Schedule
+-import androidx.compose.material.icons.filled.Star
+-import androidx.compose.material.icons.filled.SwapVert
+-import androidx.compose.material.icons.filled.Verified
+-import androidx.compose.material.icons.filled.VerifiedUser
+-import androidx.compose.material3.AlertDialog
+-import androidx.compose.material3.CircularProgressIndicator
+-import androidx.compose.material3.FilterChip
+-import androidx.compose.material3.FilterChipDefaults
+-import androidx.compose.material3.Icon
+-import androidx.compose.material3.IconButton
+-import androidx.compose.material3.LinearProgressIndicator
+-import androidx.compose.material3.MaterialTheme
+-import androidx.compose.material3.OutlinedTextField
+-import androidx.compose.material3.Scaffold
+-import androidx.compose.material3.Surface
+-import androidx.compose.material3.Switch
+-import androidx.compose.material3.SwitchDefaults
+-import androidx.compose.material3.Text
+-import androidx.compose.material3.TextButton
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.DisposableEffect
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.mutableStateOf
+-import androidx.compose.runtime.remember
+-import androidx.compose.runtime.rememberCoroutineScope
+-import androidx.compose.runtime.setValue
++import androidx.compose.material.icons.filled.*
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.draw.clip
+@@ -82,52 +41,23 @@ import androidx.compose.ui.graphics.Path
+ import androidx.compose.ui.graphics.StrokeCap
+ import androidx.compose.ui.graphics.drawscope.Stroke
+ import androidx.compose.ui.graphics.vector.ImageVector
+-import androidx.compose.ui.platform.LocalContext
+-import androidx.compose.ui.platform.LocalInspectionMode
++import androidx.compose.ui.text.input.KeyboardType
++import kotlinx.coroutines.launch
+ import androidx.compose.ui.text.font.FontFamily
+ import androidx.compose.ui.text.font.FontWeight
+-import androidx.compose.ui.text.input.KeyboardType
+ import androidx.compose.ui.text.style.TextAlign
+ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+-import androidx.core.content.ContextCompat
+-import com.google.android.gms.location.LocationCallback
+-import com.google.android.gms.location.LocationRequest
+-import com.google.android.gms.location.LocationResult
+-import com.google.android.gms.location.LocationServices
+-import com.google.android.gms.location.Priority
+-import kotlinx.coroutines.launch
+ import me.mauromax.rutaconfiable.ui.components.AppBottomBar
+ import me.mauromax.rutaconfiable.ui.components.AppCard
+-import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
+ import me.mauromax.rutaconfiable.ui.components.AppSwitch
++import me.mauromax.rutaconfiable.ui.components.AppOutlinedTextField
+ import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+ import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+ import me.mauromax.rutaconfiable.ui.components.StatusTag
+-import me.mauromax.rutaconfiable.ui.components.data.TripRepository
+-import me.mauromax.rutaconfiable.ui.theme.Background
+-import me.mauromax.rutaconfiable.ui.theme.CardBackground
+-import me.mauromax.rutaconfiable.ui.theme.MapBackground
+-import me.mauromax.rutaconfiable.ui.theme.MapRoadLine
+-import me.mauromax.rutaconfiable.ui.theme.OnPlateYellow
+-import me.mauromax.rutaconfiable.ui.theme.OnPrimary
+-import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
+-import me.mauromax.rutaconfiable.ui.theme.Outline
+-import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
+-import me.mauromax.rutaconfiable.ui.theme.PlateYellow
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.RatingStar
+-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+-import me.mauromax.rutaconfiable.ui.theme.Secondary
+-import me.mauromax.rutaconfiable.ui.theme.SecondaryContainer
+-import me.mauromax.rutaconfiable.ui.theme.SecondarySoft
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailableBg
+-import me.mauromax.rutaconfiable.ui.theme.StatusBooked
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceVariant
++import me.mauromax.rutaconfiable.ui.data.BookingRepository
++import me.mauromax.rutaconfiable.ui.theme.*
+ 
+ data class AvailableTrip(
+     val id: String,
+@@ -155,7 +85,11 @@ data class AvailableTrip(
+     val hasCargo: Boolean = true,
+     val hasSeats: Boolean = true,
+     val driverUid: String = "",
+-    val createdAt: Long = 0L
++    val createdAt: Long = 0L,
++    /** El conductor tenía la cuenta aprobada por un administrador al publicar el viaje. */
++    val driverVerified: Boolean = false,
++    /** Teléfono del conductor con indicativo, solo dígitos (vacío en viajes antiguos). */
++    val driverPhone: String = ""
+ )
+ 
+ @Composable
+@@ -190,14 +124,8 @@ fun TripScreen(
+     DisposableEffect(isTrackingLive) {
+         if (!isTrackingLive) return@DisposableEffect onDispose {}
+ 
+-        val hasFine = ContextCompat.checkSelfPermission(
+-            context,
+-            Manifest.permission.ACCESS_FINE_LOCATION
+-        ) == PackageManager.PERMISSION_GRANTED
+-        val hasCoarse = ContextCompat.checkSelfPermission(
+-            context,
+-            Manifest.permission.ACCESS_COARSE_LOCATION
+-        ) == PackageManager.PERMISSION_GRANTED
++        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
++        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+ 
+         if (!hasFine && !hasCoarse) {
+             isTrackingLive = false
+@@ -212,8 +140,7 @@ fun TripScreen(
+         val callback = object : LocationCallback() {
+             override fun onLocationResult(result: LocationResult) {
+                 result.lastLocation?.let { location ->
+-                    liveLocation =
+-                        "Lat: %.4f, Lng: %.4f".format(location.latitude, location.longitude)
++                    liveLocation = "Lat: %.4f, Lng: %.4f".format(location.latitude, location.longitude)
+                 }
+             }
+         }
+@@ -227,8 +154,7 @@ fun TripScreen(
+         onDispose {
+             try {
+                 fusedClient.removeLocationUpdates(callback)
+-            } catch (e: Exception) {
+-            }
++            } catch (e: Exception) {}
+         }
+     }
+ 
+@@ -248,8 +174,7 @@ fun TripScreen(
+ 
+     val results = trips.filter { t ->
+         val matchesOrigin = origin.isBlank() || t.origin.contains(origin.trim(), ignoreCase = true)
+-        val matchesDestination =
+-            destination.isBlank() || t.destination.contains(destination.trim(), ignoreCase = true)
++        val matchesDestination = destination.isBlank() || t.destination.contains(destination.trim(), ignoreCase = true)
+         val matchesType = when {
+             !withCargo && !withPassengers -> true
+             else -> (withCargo && t.hasCargo) || (withPassengers && t.hasSeats)
+@@ -292,10 +217,7 @@ fun TripScreen(
+                     horizontalArrangement = Arrangement.SpaceBetween,
+                     verticalAlignment = Alignment.CenterVertically
+                 ) {
+-                    Row(
+-                        verticalAlignment = Alignment.CenterVertically,
+-                        modifier = Modifier.weight(1f)
+-                    ) {
++                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                         Icon(
+                             imageVector = Icons.Default.MyLocation,
+                             contentDescription = null,
+@@ -311,8 +233,7 @@ fun TripScreen(
+                                 color = PrimaryLight
+                             )
+                             Text(
+-                                text = liveLocation
+-                                    ?: (if (isTrackingLive) "Obteniendo posición..." else "Pulsa para iniciar seguimiento"),
++                                text = liveLocation ?: (if (isTrackingLive) "Obteniendo posición..." else "Pulsa para iniciar seguimiento"),
+                                 fontSize = 11.sp,
+                                 color = OnSurfaceVariant
+                             )
+@@ -321,14 +242,8 @@ fun TripScreen(
+                     Switch(
+                         checked = isTrackingLive,
+                         onCheckedChange = { checked ->
+-                            val hasFine = ContextCompat.checkSelfPermission(
+-                                context,
+-                                Manifest.permission.ACCESS_FINE_LOCATION
+-                            ) == PackageManager.PERMISSION_GRANTED
+-                            val hasCoarse = ContextCompat.checkSelfPermission(
+-                                context,
+-                                Manifest.permission.ACCESS_COARSE_LOCATION
+-                            ) == PackageManager.PERMISSION_GRANTED
++                            val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
++                            val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+ 
+                             if (checked && !hasFine && !hasCoarse) {
+                                 permissionLauncher.launch(
+@@ -400,32 +315,21 @@ fun TripScreen(
+                         }
+                     }
+                 )
+-                AppOutlinedTextField(
+-                    destination, { destination = it }, label = "Para (destino)",
++                AppOutlinedTextField(destination, { destination = it }, label = "Para (destino)",
+                     leadingIcon = Icons.Default.Place,
+                     trailingIcon = { Icon(Icons.Default.SwapVert, null, tint = Outline) })
+-                AppOutlinedTextField(
+-                    date, { date = it }, label = "Fecha de salida",
+-                    leadingIcon = Icons.Default.CalendarMonth
+-                )
+-                AppOutlinedTextField(
+-                    time, { time = it }, label = "Horario",
+-                    leadingIcon = Icons.Default.Schedule
+-                )
++                AppOutlinedTextField(date, { date = it }, label = "Fecha de salida",
++                    leadingIcon = Icons.Default.CalendarMonth)
++                AppOutlinedTextField(time, { time = it }, label = "Horario",
++                    leadingIcon = Icons.Default.Schedule)
+             }
+ 
+             // Filtros
+             AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
+                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+-                    Text(
+-                        "FILTROS DE CAPACIDAD Y TRAYECTO", fontSize = 10.sp,
+-                        fontWeight = FontWeight.Bold, color = OnSurfaceVariant
+-                    )
+-                    Text(
+-                        "Restablecer",
+-                        fontSize = 11.sp,
+-                        fontWeight = FontWeight.Bold,
+-                        color = Secondary,
++                    Text("FILTROS DE CAPACIDAD Y TRAYECTO", fontSize = 10.sp,
++                        fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
++                    Text("Restablecer", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Secondary,
+                         modifier = Modifier.clickable {
+                             vehicle = null; withCargo = true; withPassengers = true
+                         })
+@@ -446,57 +350,31 @@ fun TripScreen(
+                     }
+                 }
+                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+-                    ToggleBox(
+-                        Icons.Default.Inventory2,
+-                        "Carga",
+-                        withCargo,
+-                        { withCargo = it },
+-                        Modifier.weight(1f)
+-                    )
+-                    ToggleBox(
+-                        Icons.Default.Groups,
+-                        "Pasajeros",
+-                        withPassengers,
+-                        { withPassengers = it },
+-                        Modifier.weight(1f)
+-                    )
++                    ToggleBox(Icons.Default.Inventory2, "Carga", withCargo, { withCargo = it }, Modifier.weight(1f))
++                    ToggleBox(Icons.Default.Groups, "Pasajeros", withPassengers, { withPassengers = it }, Modifier.weight(1f))
+                 }
+             }
+ 
+             // Encabezado de resultados
+             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                 Row(verticalAlignment = Alignment.CenterVertically) {
+-                    Text(
+-                        "Viajes Disponibles", fontSize = 17.sp, fontWeight = FontWeight.Bold,
+-                        color = PrimaryLight, fontFamily = FontFamily.Serif
+-                    )
++                    Text("Viajes Disponibles", fontSize = 17.sp, fontWeight = FontWeight.Bold,
++                        color = PrimaryLight, fontFamily = FontFamily.Serif)
+                     Spacer(Modifier.width(8.dp))
+                     StatusTag("${results.size} DISPONIBLES", SurfaceMuted, PrimaryLight)
+                 }
+                 Row(verticalAlignment = Alignment.CenterVertically) {
+-                    Icon(
+-                        Icons.AutoMirrored.Filled.Sort,
+-                        null,
+-                        Modifier.size(14.dp),
+-                        tint = OnSurfaceVariant
+-                    )
++                    Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(14.dp), tint = OnSurfaceVariant)
+                     Spacer(Modifier.width(4.dp))
+                     Text("Ordenar", fontSize = 11.sp, color = OnSurfaceVariant)
+                 }
+             }
+ 
+             if (selected != null) {
+-                TripDetailCard(selected, role)
++                TripDetailCard(selected, canBook = role == RegistrationRole.CLIENT)
+             } else {
+                 AppCard(Modifier.fillMaxWidth(), spacing = 10.dp) {
+-                    Icon(
+-                        Icons.Default.Map,
+-                        null,
+-                        Modifier
+-                            .size(32.dp)
+-                            .align(Alignment.CenterHorizontally),
+-                        tint = Outline
+-                    )
++                    Icon(Icons.Default.Map, null, Modifier.size(32.dp).align(Alignment.CenterHorizontally), tint = Outline)
+                     Text(
+                         when {
+                             trips.isEmpty() && TripRepository.loadError != null -> TripRepository.loadError!!
+@@ -513,10 +391,8 @@ fun TripScreen(
+             // Otras salidas
+             if (others.isNotEmpty()) {
+                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+-                    Text(
+-                        "Otras Salidas", fontSize = 15.sp, fontWeight = FontWeight.Bold,
+-                        color = PrimaryLight, fontFamily = FontFamily.Serif
+-                    )
++                    Text("Otras Salidas", fontSize = 15.sp, fontWeight = FontWeight.Bold,
++                        color = PrimaryLight, fontFamily = FontFamily.Serif)
+                     Text("${others.size} alternativas", fontSize = 11.sp, color = OnSurfaceVariant)
+                 }
+                 others.forEach { trip -> OtherDepartureRow(trip) { selectedId = trip.id } }
+@@ -526,81 +402,24 @@ fun TripScreen(
+ }
+ 
+ @Composable
+-private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
+-    var showDialog by remember(t.id) { mutableStateOf(false) }
+-    var kind by remember(t.id) { mutableStateOf(if (t.hasSeats) "seat" else "cargo") }
+-    var quantity by remember(t.id) { mutableStateOf("1") }
+-    var bookingError by remember(t.id) { mutableStateOf<String?>(null) }
+-    var isBooking by remember(t.id) { mutableStateOf(false) }
+-    val scope = rememberCoroutineScope()
++private fun TripDetailCard(t: AvailableTrip, canBook: Boolean) {
+     val context = LocalContext.current
+-
+-    if (showDialog) {
+-        AlertDialog(
+-            onDismissRequest = { if (!isBooking) showDialog = false },
+-            title = { Text("Reservar en ${t.id}") },
+-            text = {
+-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+-                        if (t.hasSeats) {
+-                            FilterChip(
+-                                selected = kind == "seat",
+-                                onClick = { kind = "seat" },
+-                                label = { Text("Cupos") })
+-                        }
+-                        if (t.hasCargo) {
+-                            FilterChip(
+-                                selected = kind == "cargo",
+-                                onClick = { kind = "cargo" },
+-                                label = { Text("Flete (kg)") })
+-                        }
+-                    }
+-                    OutlinedTextField(
+-                        value = quantity,
+-                        onValueChange = { quantity = it.filter { c -> c.isDigit() } },
+-                        label = { Text(if (kind == "seat") "Cantidad de cupos" else "Kilos a enviar") },
+-                        singleLine = true,
+-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+-                    )
+-                    bookingError?.let {
+-                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+-                    }
+-                }
+-            },
+-            confirmButton = {
+-                TextButton(
+-                    enabled = !isBooking,
+-                    onClick = {
+-                        bookingError = null
+-                        isBooking = true
+-                        scope.launch {
+-                            TripRepository.book(t, kind, quantity.toIntOrNull() ?: 0)
+-                                .onSuccess {
+-                                    isBooking = false
+-                                    showDialog = false
+-                                    Toast.makeText(
+-                                        context,
+-                                        "Reserva confirmada",
+-                                        Toast.LENGTH_SHORT
+-                                    ).show()
+-                                }
+-                                .onFailure { e ->
+-                                    isBooking = false
+-                                    bookingError = TripRepository.friendlyError(e)
+-                                }
+-                        }
+-                    }
+-                ) { Text(if (isBooking) "Reservando..." else "Confirmar") }
+-            },
+-            dismissButton = {
+-                TextButton(
+-                    enabled = !isBooking,
+-                    onClick = { showDialog = false }) { Text("Cancelar") }
++    val hasPhone = t.driverPhone.isNotBlank()
++    var showBooking by remember(t.id) { mutableStateOf(false) }
++    var bookedMessage by remember(t.id) { mutableStateOf<String?>(null) }
++    val soldOut = (!t.hasSeats || t.seatsFree <= 0) && (!t.hasCargo || t.cargoFreeKg <= 0)
++
++    if (showBooking) {
++        BookingDialog(
++            t = t,
++            onDismiss = { showBooking = false },
++            onBooked = { message ->
++                showBooking = false
++                bookedMessage = message
+             }
+         )
+     }
+ 
+-
+     Surface(
+         shape = RoundedCornerShape(12.dp),
+         color = CardBackground,
+@@ -610,16 +429,11 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
+         Column {
+             // Cabecera oscura
+             Row(
+-                Modifier
+-                    .fillMaxWidth()
+-                    .background(PrimaryLight)
+-                    .padding(horizontal = 14.dp, vertical = 10.dp),
++                Modifier.fillMaxWidth().background(PrimaryLight).padding(horizontal = 14.dp, vertical = 10.dp),
+                 Arrangement.SpaceBetween, Alignment.CenterVertically
+             ) {
+-                Text(
+-                    "VIAJE SELECCIONADO • EN DETALLE", color = OnPrimary, fontSize = 10.sp,
+-                    fontWeight = FontWeight.Bold
+-                )
++                Text("VIAJE SELECCIONADO • EN DETALLE", color = OnPrimary, fontSize = 10.sp,
++                    fontWeight = FontWeight.Bold)
+                 StatusTag(t.id, SurfaceMuted, PrimaryLight)
+             }
+ 
+@@ -635,92 +449,66 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
+ 
+                 // Conductor
+                 Surface(color = SurfaceSoft, shape = RoundedCornerShape(10.dp)) {
+-                    Row(
+-                        Modifier
+-                            .fillMaxWidth()
+-                            .padding(12.dp),
+-                        verticalAlignment = Alignment.CenterVertically
+-                    ) {
+-                        Icon(
+-                            Icons.Default.AccountCircle,
+-                            null,
+-                            Modifier.size(44.dp),
+-                            tint = PrimaryLight
+-                        )
++                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
++                        Icon(Icons.Default.AccountCircle, null, Modifier.size(44.dp), tint = PrimaryLight)
+                         Spacer(Modifier.width(10.dp))
+                         Column(Modifier.weight(1f)) {
+-                            Text(
+-                                t.driver,
+-                                fontSize = 14.sp,
+-                                fontWeight = FontWeight.Bold,
+-                                color = PrimaryLight
+-                            )
++                            Text(t.driver, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                             Row(verticalAlignment = Alignment.CenterVertically) {
+-                                Icon(
+-                                    Icons.Default.Star,
+-                                    null,
+-                                    Modifier.size(13.dp),
+-                                    tint = RatingStar
+-                                )
++                                Icon(Icons.Default.Star, null, Modifier.size(13.dp), tint = RatingStar)
+                                 Spacer(Modifier.width(2.dp))
+-                                Text(
+-                                    "${t.rating} · ${t.verifiedTrips} viajes verificados",
+-                                    fontSize = 11.sp, color = OnSurfaceVariant
+-                                )
++                                Text("${t.rating} · ${t.verifiedTrips} viajes verificados",
++                                    fontSize = 11.sp, color = OnSurfaceVariant)
++                            }
++                            if (t.driverVerified) {
++                                StatusTag("Conductor Verificado", StatusAvailableBg, StatusAvailable, Icons.Default.Verified)
++                            } else {
++                                StatusTag("Sin verificar", SurfaceMuted, Outline, Icons.Default.Info)
+                             }
+-                            StatusTag(
+-                                "Conductor Verificado",
+-                                StatusAvailableBg,
+-                                StatusAvailable,
+-                                Icons.Default.Verified
+-                            )
+                         }
+                         Column {
+-                            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+-                                Icon(Icons.Default.Call, "Llamar", tint = PrimaryLight)
++                            IconButton(
++                                onClick = { openDialer(context, t.driverPhone) },
++                                enabled = hasPhone,
++                                modifier = Modifier.size(36.dp)
++                            ) {
++                                Icon(Icons.Default.Call, "Llamar", tint = if (hasPhone) PrimaryLight else Outline)
+                             }
+-                            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+-                                Icon(Icons.AutoMirrored.Filled.Chat, "Mensaje", tint = PrimaryLight)
++                            IconButton(
++                                onClick = {
++                                    openWhatsApp(
++                                        context, t.driverPhone,
++                                        "Hola ${t.driver}, te escribo por tu viaje ${t.id} " +
++                                                "(${t.origin} → ${t.destination}) en Ruta Confiable."
++                                    )
++                                },
++                                enabled = hasPhone,
++                                modifier = Modifier.size(36.dp)
++                            ) {
++                                Icon(Icons.AutoMirrored.Filled.Chat, "Mensaje", tint = if (hasPhone) PrimaryLight else Outline)
+                             }
+                         }
+                     }
+                 }
+ 
+-                InfoRow(
+-                    Icons.Default.DirectionsCar,
+-                    "VEHÍCULO DE CARGA Y PASAJE",
+-                    t.vehicle,
+-                    t.vehicleDetail
+-                )
++                InfoRow(Icons.Default.DirectionsCar, "VEHÍCULO DE CARGA Y PASAJE", t.vehicle, t.vehicleDetail)
+ 
+                 // Placa
+                 Surface(
+                     shape = RoundedCornerShape(10.dp), color = CardBackground,
+                     border = BorderStroke(1.dp, OutlineVariant)
+                 ) {
+-                    Row(
+-                        Modifier
+-                            .fillMaxWidth()
+-                            .padding(12.dp),
+-                        verticalAlignment = Alignment.CenterVertically
+-                    ) {
++                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                         Icon(Icons.Default.Badge, null, tint = PrimaryLight)
+                         Spacer(Modifier.width(10.dp))
+                         Column {
+                             Text("PLACA Y REGISTRO", fontSize = 10.sp, color = OnSurfaceVariant)
+                             StatusTag(t.plate, PlateYellow, OnPlateYellow)
+                             Row(verticalAlignment = Alignment.CenterVertically) {
+-                                Icon(
+-                                    Icons.Default.VerifiedUser,
+-                                    null,
+-                                    Modifier.size(12.dp),
+-                                    tint = StatusAvailable
+-                                )
++                                Icon(Icons.Default.VerifiedUser, null, Modifier.size(12.dp), tint = StatusAvailable)
+                                 Spacer(Modifier.width(4.dp))
+-                                Text(
+-                                    "SOAT vigente comprobado", fontSize = 11.sp,
+-                                    fontWeight = FontWeight.Bold, color = StatusAvailable
+-                                )
++                                Text("SOAT vigente comprobado", fontSize = 11.sp,
++                                    fontWeight = FontWeight.Bold, color = StatusAvailable)
+                             }
+                         }
+                     }
+@@ -728,55 +516,27 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
+ 
+                 // Capacidad
+                 Surface(color = SurfaceSoft, shape = RoundedCornerShape(10.dp)) {
+-                    Column(
+-                        Modifier.padding(12.dp),
+-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+-                    ) {
+-                        Row(
+-                            Modifier.fillMaxWidth(),
+-                            Arrangement.SpaceBetween,
+-                            Alignment.CenterVertically
+-                        ) {
+-                            Text(
+-                                "CAPACIDAD DISPONIBLE EN RUTA", fontSize = 10.sp,
+-                                fontWeight = FontWeight.Bold, color = OnSurfaceVariant
+-                            )
++                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
++                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
++                            Text("CAPACIDAD DISPONIBLE EN RUTA", fontSize = 10.sp,
++                                fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
+                             StatusTag("Espacio Confirmado", StatusAvailableBg, StatusAvailable)
+                         }
+                         if (t.hasCargo) {
+-                            CapacityRow(
+-                                Icons.Default.Inventory2,
+-                                "Carga Flete",
+-                                "${t.cargoFreeKg} kg libres",
+-                                t.cargoNote
+-                            ) {
++                            CapacityRow(Icons.Default.Inventory2, "Carga Flete", "${t.cargoFreeKg} kg libres", t.cargoNote) {
+                                 LinearProgressIndicator(
+-                                    progress = {
+-                                        (t.cargoFreeKg.toFloat() / t.cargoTotalKg).coerceIn(
+-                                            0f,
+-                                            1f
+-                                        )
+-                                    },
+-                                    modifier = Modifier
+-                                        .fillMaxWidth()
+-                                        .height(5.dp),
++                                    progress = { (t.cargoFreeKg.toFloat() / t.cargoTotalKg).coerceIn(0f, 1f) },
++                                    modifier = Modifier.fillMaxWidth().height(5.dp),
+                                     color = SecondaryContainer, trackColor = SurfaceVariant
+                                 )
+                             }
+                         }
+                         if (t.hasSeats) {
+-                            CapacityRow(
+-                                Icons.Default.EventSeat,
+-                                "Pasajeros",
+-                                "${t.seatsFree} cupos libres",
+-                                t.seatsNote
+-                            ) {
++                            CapacityRow(Icons.Default.EventSeat, "Pasajeros", "${t.seatsFree} cupos libres", t.seatsNote) {
+                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                     repeat(t.seatsTotal) { i ->
+                                         Box(
+-                                            Modifier
+-                                                .size(10.dp)
+-                                                .clip(CircleShape)
++                                            Modifier.size(10.dp).clip(CircleShape)
+                                                 .background(if (i < t.seatsFree) PrimaryLight else SurfaceVariant)
+                                         )
+                                     }
+@@ -791,34 +551,33 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
+                     if (t.hasCargo) {
+                         Column {
+                             Text("CARGA", fontSize = 10.sp, color = OnSurfaceVariant)
+-                            Text(
+-                                "${t.cargoPrice} COP",
+-                                fontSize = 16.sp,
+-                                fontWeight = FontWeight.Bold,
+-                                color = PrimaryLight
+-                            )
++                            Text("${t.cargoPrice} COP", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                         }
+                     } else Spacer(Modifier.width(1.dp))
+                     if (t.hasSeats) {
+                         Column(horizontalAlignment = Alignment.End) {
+                             Text("CUPO A BORDO", fontSize = 10.sp, color = OnSurfaceVariant)
+-                            Text(
+-                                "${t.seatPrice} COP",
+-                                fontSize = 16.sp,
+-                                fontWeight = FontWeight.Bold,
+-                                color = Secondary
+-                            )
++                            Text("${t.seatPrice} COP", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                         }
+                     }
+                 }
+ 
+-                if (role == RegistrationRole.CLIENT) {
+-                    PrimaryButton(
+-                        text = "Reservar cupo o solicitar flete",
+-                        onClick = {  bookingError = null; showDialog = true },
+-                        leadingIcon = Icons.Default.LocalShipping,
+-                        trailingIcon = null,
+-                        containerColor = SecondaryContainer
++                PrimaryButton(
++                    text = when {
++                        !canBook -> "Solo los clientes pueden reservar"
++                        soldOut -> "Sin cupo disponible"
++                        else -> "Reservar cupo o solicitar flete"
++                    },
++                    onClick = { showBooking = true },
++                    enabled = canBook && !soldOut,
++                    leadingIcon = Icons.Default.LocalShipping,
++                    trailingIcon = null,
++                    containerColor = SecondaryContainer
++                )
++                bookedMessage?.let {
++                    Text(
++                        it, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = StatusAvailable,
++                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
+                     )
+                 }
+                 Text(
+@@ -831,40 +590,124 @@ private fun TripDetailCard(t: AvailableTrip, role: RegistrationRole) {
+     }
+ }
+ 
++/** Abre el marcador del teléfono con el número del conductor (no necesita permisos). */
++private fun openDialer(context: Context, phoneDigits: String) {
++    runCatching {
++        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:+$phoneDigits")))
++    }
++}
++
++/** Abre un chat de WhatsApp con el conductor; si no hay WhatsApp, abre el enlace en el navegador. */
++private fun openWhatsApp(context: Context, phoneDigits: String, text: String) {
++    runCatching {
++        val uri = Uri.parse("https://wa.me/$phoneDigits?text=${Uri.encode(text)}")
++        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
++    }
++}
++
++/** Pide cuántos cupos y/o kilos reservar y crea la reserva en Firestore. */
++@Composable
++private fun BookingDialog(
++    t: AvailableTrip,
++    onDismiss: () -> Unit,
++    onBooked: (message: String) -> Unit
++) {
++    val canSeats = t.hasSeats && t.seatsFree > 0
++    val canCargo = t.hasCargo && t.cargoFreeKg > 0
++    var seats by remember { mutableIntStateOf(0) }
++    var cargoText by remember { mutableStateOf("") }
++    var error by remember { mutableStateOf<String?>(null) }
++    var isBooking by remember { mutableStateOf(false) }
++    val scope = rememberCoroutineScope()
++    val cargoKg = cargoText.toIntOrNull() ?: 0
++
++    fun confirm() {
++        if (cargoKg > t.cargoFreeKg) {
++            error = "Solo quedan ${t.cargoFreeKg} kg libres."
++            return
++        }
++        error = null
++        isBooking = true
++        scope.launch {
++            BookingRepository.book(t, seats, cargoKg)
++                .onSuccess {
++                    isBooking = false
++                    onBooked("Reserva enviada. El conductor la confirmará pronto.")
++                }
++                .onFailure { e ->
++                    isBooking = false
++                    error = TripRepository.friendlyError(e)
++                }
++        }
++    }
++
++    AlertDialog(
++        onDismissRequest = { if (!isBooking) onDismiss() },
++        title = { Text("Reservar en ${t.id}", fontWeight = FontWeight.Bold, color = PrimaryLight) },
++        text = {
++            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
++                if (canSeats) {
++                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
++                        Column {
++                            Text("Cupos", fontSize = 13.sp, fontWeight = FontWeight.Bold)
++                            Text("${t.seatsFree} libres · ${t.seatPrice} COP c/u", fontSize = 11.sp, color = OnSurfaceVariant)
++                        }
++                        Row(verticalAlignment = Alignment.CenterVertically) {
++                            IconButton(onClick = { if (seats > 0) seats-- }, enabled = !isBooking && seats > 0) {
++                                Icon(Icons.Default.Remove, "Menos cupos")
++                            }
++                            Text("$seats", fontSize = 16.sp, fontWeight = FontWeight.Bold)
++                            IconButton(onClick = { if (seats < t.seatsFree) seats++ }, enabled = !isBooking && seats < t.seatsFree) {
++                                Icon(Icons.Default.Add, "Más cupos")
++                            }
++                        }
++                    }
++                }
++                if (canCargo) {
++                    OutlinedTextField(
++                        value = cargoText,
++                        onValueChange = { cargoText = it.filter(Char::isDigit).take(6) },
++                        label = { Text("Carga en kg (máx. ${t.cargoFreeKg})") },
++                        supportingText = { Text("${t.cargoPrice} COP") },
++                        singleLine = true,
++                        enabled = !isBooking,
++                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
++                        modifier = Modifier.fillMaxWidth()
++                    )
++                }
++                error?.let { Text(it, fontSize = 12.sp, color = StatusBooked) }
++            }
++        },
++        confirmButton = {
++            TextButton(
++                onClick = { confirm() },
++                enabled = !isBooking && (seats > 0 || cargoKg > 0)
++            ) { Text(if (isBooking) "Reservando..." else "Confirmar reserva") }
++        },
++        dismissButton = {
++            TextButton(onClick = onDismiss, enabled = !isBooking) { Text("Cancelar") }
++        }
++    )
++}
++
+ @Composable
+ private fun RouteMapPreview(distance: String, duration: String) {
+     Box(
+-        Modifier
+-            .fillMaxWidth()
+-            .height(140.dp)
+-            .clip(RoundedCornerShape(10.dp))
+-            .background(MapBackground)
++        Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(10.dp)).background(MapBackground)
+     ) {
+         Canvas(Modifier.fillMaxSize()) {
+             val start = Offset(size.width * 0.10f, size.height * 0.78f)
+             val end = Offset(size.width * 0.88f, size.height * 0.25f)
+             val path = Path().apply {
+                 moveTo(start.x, start.y)
+-                cubicTo(
+-                    size.width * 0.35f,
+-                    size.height * 0.95f,
+-                    size.width * 0.50f,
+-                    size.height * 0.15f,
+-                    end.x,
+-                    end.y
+-                )
++                cubicTo(size.width * 0.35f, size.height * 0.95f, size.width * 0.50f, size.height * 0.15f, end.x, end.y)
+             }
+             drawPath(path, MapRoadLine, style = Stroke(width = 14f, cap = StrokeCap.Round))
+             drawPath(path, SecondaryContainer, style = Stroke(width = 7f, cap = StrokeCap.Round))
+             drawCircle(StatusAvailable, 16f, start)
+             drawCircle(StatusBooked, 16f, end)
+         }
+-        Row(
+-            Modifier
+-                .align(Alignment.TopStart)
+-                .padding(8.dp),
+-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+-        ) {
++        Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+             StatusTag(distance, PrimaryLight, OnPrimary, Icons.Default.Route)
+             StatusTag(duration, PrimaryLight, OnPrimary, Icons.Default.Schedule)
+         }
+@@ -877,26 +720,14 @@ private fun CapacityRow(
+     indicator: @Composable () -> Unit
+ ) {
+     Surface(color = CardBackground, shape = RoundedCornerShape(8.dp)) {
+-        Row(
+-            Modifier
+-                .fillMaxWidth()
+-                .padding(10.dp),
+-            verticalAlignment = Alignment.CenterVertically
+-        ) {
++        Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+             Surface(color = SecondarySoft, shape = RoundedCornerShape(8.dp)) {
+-                Icon(icon, null, Modifier
+-                    .padding(8.dp)
+-                    .size(20.dp), tint = Secondary)
++                Icon(icon, null, Modifier.padding(8.dp).size(20.dp), tint = Secondary)
+             }
+             Spacer(Modifier.width(10.dp))
+             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+-                    Text(
+-                        title,
+-                        fontSize = 12.sp,
+-                        fontWeight = FontWeight.Bold,
+-                        color = PrimaryLight
+-                    )
++                    Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                     Text(free, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Secondary)
+                 }
+                 indicator()
+@@ -908,17 +739,8 @@ private fun CapacityRow(
+ 
+ @Composable
+ private fun InfoRow(icon: ImageVector, label: String, title: String, subtitle: String) {
+-    Surface(
+-        shape = RoundedCornerShape(10.dp),
+-        color = CardBackground,
+-        border = BorderStroke(1.dp, OutlineVariant)
+-    ) {
+-        Row(
+-            Modifier
+-                .fillMaxWidth()
+-                .padding(12.dp),
+-            verticalAlignment = Alignment.CenterVertically
+-        ) {
++    Surface(shape = RoundedCornerShape(10.dp), color = CardBackground, border = BorderStroke(1.dp, OutlineVariant)) {
++        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+             Icon(icon, null, tint = PrimaryLight)
+             Spacer(Modifier.width(10.dp))
+             Column {
+@@ -933,9 +755,7 @@ private fun InfoRow(icon: ImageVector, label: String, title: String, subtitle: S
+ @Composable
+ private fun OtherDepartureRow(t: AvailableTrip, onClick: () -> Unit) {
+     Surface(
+-        modifier = Modifier
+-            .fillMaxWidth()
+-            .clickable { onClick() },
++        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+         shape = RoundedCornerShape(10.dp), color = CardBackground,
+         border = BorderStroke(1.dp, OutlineVariant)
+     ) {
+@@ -943,20 +763,13 @@ private fun OtherDepartureRow(t: AvailableTrip, onClick: () -> Unit) {
+             Icon(Icons.Default.LocalShipping, null, tint = PrimaryLight)
+             Spacer(Modifier.width(10.dp))
+             Column(Modifier.weight(1f)) {
+-                Text(
+-                    "${t.departure} · ${t.vehicle}",
+-                    fontSize = 12.sp,
+-                    fontWeight = FontWeight.Bold,
+-                    color = PrimaryLight
+-                )
++                Text("${t.departure} · ${t.vehicle}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+                 Text("${t.origin} → ${t.destination}", fontSize = 10.sp, color = OnSurfaceVariant)
+             }
+             Column(horizontalAlignment = Alignment.End) {
+                 if (t.hasSeats) StatusTag("${t.seatsFree} cupo", StatusAvailableBg, StatusAvailable)
+-                Text(
+-                    if (t.hasCargo) t.cargoPrice else t.seatPrice,
+-                    fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Secondary
+-                )
++                Text(if (t.hasCargo) t.cargoPrice else t.seatPrice,
++                    fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Secondary)
+             }
+         }
+     }
+@@ -967,17 +780,8 @@ private fun ToggleBox(
+     icon: ImageVector, label: String, checked: Boolean,
+     onChange: (Boolean) -> Unit, modifier: Modifier = Modifier
+ ) {
+-    Surface(
+-        modifier,
+-        color = SurfaceSoft,
+-        shape = RoundedCornerShape(8.dp),
+-        border = BorderStroke(1.dp, OutlineVariant)
+-    ) {
+-        Row(
+-            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+-            Arrangement.SpaceBetween,
+-            Alignment.CenterVertically
+-        ) {
++    Surface(modifier, color = SurfaceSoft, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, OutlineVariant)) {
++        Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+             Icon(icon, null, Modifier.size(18.dp), tint = Secondary)
+             Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
+             AppSwitch(checked, onChange)
+@@ -991,13 +795,7 @@ private fun TripBox(content: @Composable ColumnScope.() -> Unit) {
+         modifier = Modifier.fillMaxWidth(),
+         color = CardBackground, shape = RoundedCornerShape(12.dp),
+         border = BorderStroke(1.dp, OutlineVariant), shadowElevation = 1.dp
+-    ) {
+-        Column(
+-            Modifier.padding(14.dp),
+-            verticalArrangement = Arrangement.spacedBy(10.dp),
+-            content = content
+-        )
+-    }
++    ) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content) }
+ }
+ 
+ private fun fetchCurrentLocation(context: Context, onLocationResult: (String) -> Unit) {
+@@ -1020,12 +818,10 @@ private fun fetchCurrentLocation(context: Context, onLocationResult: (String) ->
+                 val latLngStr = "Lat: %.4f, Lng: %.4f".format(location.latitude, location.longitude)
+                 try {
+                     val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+-                    val addresses =
+-                        geocoder.getFromLocation(location.latitude, location.longitude, 1)
++                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                     if (!addresses.isNullOrEmpty()) {
+                         val address = addresses[0]
+-                        val cityName = address.locality ?: address.subAdminArea ?: address.adminArea
+-                        ?: latLngStr
++                        val cityName = address.locality ?: address.subAdminArea ?: address.adminArea ?: latLngStr
+                         onLocationResult(cityName)
+                     } else {
+                         onLocationResult(latLngStr)
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/VerificationPendingScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/VerificationPendingScreen.kt
+index c0cc1c6..9d3b79c 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/VerificationPendingScreen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/VerificationPendingScreen.kt
+@@ -1,33 +1,12 @@
+ package me.mauromax.rutaconfiable.ui.screens
+ 
+-import androidx.compose.foundation.layout.Arrangement
+-import androidx.compose.foundation.layout.Column
+-import androidx.compose.foundation.layout.PaddingValues
+-import androidx.compose.foundation.layout.Row
+-import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxSize
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.padding
+-import androidx.compose.foundation.layout.size
+-import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.material.icons.Icons
+-import androidx.compose.material.icons.filled.AccessTime
+-import androidx.compose.material.icons.filled.Check
+-import androidx.compose.material.icons.filled.HourglassTop
+-import androidx.compose.material.icons.filled.Lock
+-import androidx.compose.material.icons.filled.Refresh
+-import androidx.compose.material.icons.filled.VerifiedUser
+-import androidx.compose.material3.HorizontalDivider
+-import androidx.compose.material3.Icon
+-import androidx.compose.material3.Scaffold
+-import androidx.compose.material3.Surface
+-import androidx.compose.material3.Text
+-import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.mutableStateOf
+-import androidx.compose.runtime.remember
+-import androidx.compose.runtime.setValue
++import androidx.compose.material.icons.automirrored.filled.Logout
++import androidx.compose.material.icons.filled.*
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.text.font.FontWeight
+@@ -35,111 +14,138 @@ import androidx.compose.ui.text.style.TextAlign
+ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+-import me.mauromax.rutaconfiable.ui.components.AppCard
+-import me.mauromax.rutaconfiable.ui.components.BodyText
+-import me.mauromax.rutaconfiable.ui.components.Hint
+-import me.mauromax.rutaconfiable.ui.components.PillTag
+-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+-import me.mauromax.rutaconfiable.ui.components.ScreenColumn
+-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
+-import me.mauromax.rutaconfiable.ui.components.SecondaryOutlinedButton
+-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
+-import me.mauromax.rutaconfiable.ui.theme.Background
+-import me.mauromax.rutaconfiable.ui.theme.Outline
+-import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailableBg
+-import me.mauromax.rutaconfiable.ui.theme.StatusPending
+-import me.mauromax.rutaconfiable.ui.theme.StatusPendingBg
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceMuted
+-import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
++import me.mauromax.rutaconfiable.ui.components.*
++import me.mauromax.rutaconfiable.ui.data.AccountStatus
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
++import me.mauromax.rutaconfiable.ui.data.VerificationStatus
++import me.mauromax.rutaconfiable.ui.theme.*
+ 
++/**
++ * Espera la aprobación de la cuenta por parte de un administrador.
++ * Escucha users/{uid} en tiempo real y llama a [onNavigateToProfile] en cuanto la cuenta queda
++ * verificada. "Aceptar estado de verificación" deja seguir al perfil sin esperar la aprobación.
++ * Si la cuenta es rechazada se muestra el motivo y solo se puede cerrar sesión.
++ */
+ @Composable
+ fun VerificationPendingScreen(
+     role: RegistrationRole = RegistrationRole.DRIVER,
+     onNavigateToProfile: () -> Unit = {},
+     onResetRegistration: () -> Unit = {}
+ ) {
+-    var isCheckingStatus by remember { mutableStateOf(false) }
++    var rejection by remember { mutableStateOf<AccountStatus?>(null) }
+     val isDriver = role == RegistrationRole.DRIVER
++    val currentOnApproved by rememberUpdatedState(onNavigateToProfile)
++
++    // Avanza solo cuando el administrador aprueba (o muestra el rechazo).
++    LaunchedEffect(Unit) {
++        AuthRepository.observeAccountStatus().collect { status ->
++            when (status.verification) {
++                VerificationStatus.APPROVED -> currentOnApproved()
++                VerificationStatus.REJECTED -> rejection = status
++                VerificationStatus.PENDING -> rejection = null
++            }
++        }
++    }
+ 
+     Scaffold(
+         topBar = { StandardAppTopBar(onBackClick = onResetRegistration, stepTagText = "Paso 2 de 2") },
+         containerColor = Background
+     ) { innerPadding ->
+         ScreenColumn(innerPadding, Alignment.CenterHorizontally) {
++            val rejected = rejection
++
+             // Estado principal
+             AppCard(
+                 Modifier.fillMaxWidth(), radius = 16.dp, padding = 20.dp,
+                 spacing = 12.dp, alignment = Alignment.CenterHorizontally
+             ) {
+-                Surface(Modifier.size(72.dp), shape = CircleShape, color = StatusPendingBg) {
++                Surface(
++                    Modifier.size(72.dp), shape = CircleShape,
++                    color = if (rejected != null) StatusBookedBg else StatusPendingBg
++                ) {
+                     Icon(
+-                        Icons.Default.HourglassTop, null,
+-                        Modifier.padding(16.dp).fillMaxSize(), tint = StatusPending
++                        if (rejected != null) Icons.Default.Block else Icons.Default.HourglassTop, null,
++                        Modifier.padding(16.dp).fillMaxSize(),
++                        tint = if (rejected != null) StatusBooked else StatusPending
+                     )
+                 }
+ 
+                 PillTag(
+-                    color = StatusPendingBg,
++                    color = if (rejected != null) StatusBookedBg else StatusPendingBg,
+                     padding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                 ) {
+-                    Icon(Icons.Default.AccessTime, null, Modifier.size(14.dp), tint = StatusPending)
++                    val tint = if (rejected != null) StatusBooked else StatusPending
++                    Icon(
++                        if (rejected != null) Icons.Default.ErrorOutline else Icons.Default.AccessTime,
++                        null, Modifier.size(14.dp), tint = tint
++                    )
+                     Spacer(Modifier.width(6.dp))
+                     Text(
+-                        "VERIFICACIÓN EN PROCESO", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+-                        color = StatusPending, letterSpacing = 0.5.sp
++                        if (rejected != null) "VERIFICACIÓN RECHAZADA" else "VERIFICACIÓN EN PROCESO",
++                        fontSize = 11.sp, fontWeight = FontWeight.Bold,
++                        color = tint, letterSpacing = 0.5.sp
+                     )
+                 }
+ 
+-                ScreenTitle("Documentos en Revisión Legal", 22.sp, textAlign = TextAlign.Center)
+-                BodyText(
+-                    if (isDriver) {
+-                        "Estamos cruzando tu documentación (Licencia, SOAT, RUNT y Selfie biométrica) con las entidades de control vehicular y seguridad logística nacional."
+-                    } else {
+-                        "Estamos validando tus datos de identidad, antecedentes y selfie biométrica con la Registraduría y sistemas de seguridad vial."
+-                    },
+-                    textAlign = TextAlign.Center
+-                )
++                if (rejected != null) {
++                    ScreenTitle("No pudimos verificar tu identidad", 22.sp, textAlign = TextAlign.Center)
++                    BodyText(
++                        rejected.rejectionReason
++                            ?: "Revisamos tu documentación y no pudimos aprobarla. Comunícate con soporte para corregir tus datos.",
++                        textAlign = TextAlign.Center
++                    )
++                } else {
++                    ScreenTitle("Documentos en Revisión Legal", 22.sp, textAlign = TextAlign.Center)
++                    BodyText(
++                        if (isDriver) {
++                            "Estamos cruzando tu documentación (Licencia, SOAT, RUNT y Selfie biométrica) con las entidades de control vehicular y seguridad logística nacional."
++                        } else {
++                            "Estamos validando tus datos de identidad, antecedentes y selfie biométrica con la Registraduría y sistemas de seguridad vial."
++                        },
++                        textAlign = TextAlign.Center
++                    )
++                }
+             }
+ 
+             // Pasos de la verificación
+-            AppCard(Modifier.fillMaxWidth(), padding = 16.dp, spacing = 14.dp) {
+-                Text(
+-                    "Estado de Verificación Paso a Paso", fontSize = 14.sp,
+-                    fontWeight = FontWeight.Bold, color = PrimaryLight
+-                )
+-                HorizontalDivider(color = SurfaceSoft)
+-                TimelineStepRow(
+-                    "1. Envío de formulario y adjuntos",
+-                    "Documentos cargados correctamente",
+-                    isCompleted = true
+-                )
+-                TimelineStepRow(
+-                    if (isDriver) "2. Validación RUNT, SOAT y Licencia" else "2. Validación de Identidad y Biometría",
+-                    "Consulta directa en bases de datos oficiales (~15 a 30 min)",
+-                    isInProgress = true
+-                )
+-                TimelineStepRow(
+-                    "3. Habilitación de perfil operativo",
+-                    "Aprobación final para activar tu cuenta"
+-                )
++            if (rejected == null) {
++                AppCard(Modifier.fillMaxWidth(), padding = 16.dp, spacing = 14.dp) {
++                    Text(
++                        "Estado de Verificación Paso a Paso", fontSize = 14.sp,
++                        fontWeight = FontWeight.Bold, color = PrimaryLight
++                    )
++                    HorizontalDivider(color = SurfaceSoft)
++                    TimelineStepRow(
++                        "1. Envío de formulario y adjuntos",
++                        "Datos de la cuenta enviados correctamente",
++                        isCompleted = true
++                    )
++                    TimelineStepRow(
++                        if (isDriver) "2. Validación RUNT, SOAT y Licencia" else "2. Validación de Identidad y Biometría",
++                        "Un administrador revisa tu información. Esta pantalla avanza sola al aprobarla.",
++                        isInProgress = true
++                    )
++                    TimelineStepRow(
++                        "3. Habilitación de perfil operativo",
++                        "Aprobación final para activar tu cuenta"
++                    )
++                }
+             }
+ 
+             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+-                PrimaryButton(
+-                    "Simular Aprobación y Ver Perfil", onNavigateToProfile,
+-                    leadingIcon = Icons.Default.VerifiedUser
+-                )
+-                SecondaryOutlinedButton(
+-                    if (isCheckingStatus) "Consultando entidades..." else "Consultar Estado de Verificación",
+-                    { isCheckingStatus = !isCheckingStatus },
+-                    leadingIcon = Icons.Default.Refresh,
+-                    height = 48.dp,
+-                    borderColor = OutlineVariant
+-                )
++                if (rejected == null) {
++                    PrimaryButton(
++                        "Aceptar estado de verificación", onNavigateToProfile,
++                        leadingIcon = Icons.Default.VerifiedUser
++                    )
++                }
++                if (rejected != null) {
++                    PrimaryButton(
++                        "Cerrar sesión", onResetRegistration,
++                        leadingIcon = Icons.AutoMirrored.Filled.Logout,
++                        trailingIcon = null
++                    )
++                }
+             }
+         }
+     }
+@@ -187,4 +193,4 @@ private fun TimelineStepRow(
+ @Composable
+ fun VerificationPendingScreenPreview() {
+     RutaConfiableTheme { VerificationPendingScreen() }
+-}
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/WelcomeScreen.kt b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/WelcomeScreen.kt
+index 0d56fbf..cde9177 100644
+--- a/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/WelcomeScreen.kt
++++ b/app/src/main/java/me/mauromax/rutaconfiable/ui/screens/WelcomeScreen.kt
+@@ -2,31 +2,20 @@ package me.mauromax.rutaconfiable.ui.screens
+ 
+ import androidx.compose.foundation.Image
+ import androidx.compose.foundation.background
+-import androidx.compose.foundation.layout.Arrangement
+-import androidx.compose.foundation.layout.Box
+-import androidx.compose.foundation.layout.Column
+-import androidx.compose.foundation.layout.Row
+-import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxSize
+-import androidx.compose.foundation.layout.fillMaxWidth
+-import androidx.compose.foundation.layout.height
+-import androidx.compose.foundation.layout.padding
+-import androidx.compose.foundation.layout.size
+-import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.filled.AccountBalanceWallet
++import androidx.compose.material.icons.filled.AccountCircle
+ import androidx.compose.material.icons.filled.AltRoute
+ import androidx.compose.material.icons.filled.CheckCircle
+ import androidx.compose.material.icons.filled.Inventory2
+ import androidx.compose.material.icons.filled.PersonAdd
+ import androidx.compose.material.icons.filled.Shield
+-import androidx.compose.material3.ExperimentalMaterial3Api
+-import androidx.compose.material3.Icon
+-import androidx.compose.material3.ModalBottomSheet
+-import androidx.compose.material3.Scaffold
+-import androidx.compose.material3.Text
++import androidx.compose.material3.*
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+@@ -37,6 +26,7 @@ import androidx.compose.ui.draw.clip
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.vector.ImageVector
+ import androidx.compose.ui.layout.ContentScale
++import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.res.painterResource
+ import androidx.compose.ui.text.font.FontFamily
+ import androidx.compose.ui.text.font.FontWeight
+@@ -44,23 +34,11 @@ import androidx.compose.ui.text.style.TextAlign
+ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
++import kotlinx.coroutines.launch
+ import me.mauromax.rutaconfiable.R
+-import me.mauromax.rutaconfiable.ui.components.BenefitCard
+-import me.mauromax.rutaconfiable.ui.components.BodyText
+-import me.mauromax.rutaconfiable.ui.components.PillTag
+-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
+-import me.mauromax.rutaconfiable.ui.components.ScreenColumn
+-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
+-import me.mauromax.rutaconfiable.ui.components.SecondaryOutlinedButton
+-import me.mauromax.rutaconfiable.ui.components.WelcomeAppTopBar
+-import me.mauromax.rutaconfiable.ui.theme.Background
+-import me.mauromax.rutaconfiable.ui.theme.CardBackground
+-import me.mauromax.rutaconfiable.ui.theme.Outline
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryDark
+-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
+-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
+-import me.mauromax.rutaconfiable.ui.theme.Secondary
+-import me.mauromax.rutaconfiable.ui.theme.StatusAvailable
++import me.mauromax.rutaconfiable.ui.components.*
++import me.mauromax.rutaconfiable.ui.data.AuthRepository
++import me.mauromax.rutaconfiable.ui.theme.*
+ 
+ private data class BenefitInfo(
+     val title: String,
+@@ -102,10 +80,107 @@ private val benefits = listOf(
+ @Composable
+ fun WelcomeScreen(
+     onNavigateToLogin: () -> Unit = {},
+-    onNavigateToRegister: () -> Unit = {}
++    onNavigateToRegister: () -> Unit = {},
++    /** [verified] = false: la cuenta existe pero un administrador aún no la aprueba. */
++    onGoogleSignedIn: (role: RegistrationRole, verified: Boolean) -> Unit = { _, _ -> }
+ ) {
+     var selectedBenefit by remember { mutableStateOf<BenefitInfo?>(null) }
+ 
++    val context = LocalContext.current
++    val scope = rememberCoroutineScope()
++    var isGoogleLoading by remember { mutableStateOf(false) }
++    var googleError by remember { mutableStateOf<String?>(null) }
++    var askRole by remember { mutableStateOf(false) }
++
++    // 1) Google entrega la cuenta, 2) Firebase inicia sesión, 3) si es una cuenta nueva
++    // se pregunta si es cliente o conductor; si ya existía se usa el rol que tenía guardado.
++    fun signInWithGoogle() {
++        if (isGoogleLoading) return
++        googleError = null
++        isGoogleLoading = true
++        scope.launch {
++            try {
++                val idToken = GoogleSignIn.getIdToken(context).getOrElse { e ->
++                    googleError = GoogleSignIn.friendlyError(e)
++                    return@launch
++                }
++                AuthRepository.signInWithGoogle(idToken).onFailure { e ->
++                    googleError = AuthRepository.friendlyError(e)
++                    return@launch
++                }
++                val exists = AuthRepository.hasProfile().getOrElse {
++                    AuthRepository.logout()
++                    googleError = "No se pudo leer tu perfil. Revisa tu conexión e intenta de nuevo."
++                    return@launch
++                }
++                if (!exists) {
++                    askRole = true
++                    return@launch
++                }
++                val status = AuthRepository.getAccountStatus()
++                when (status?.role) {
++                    "client" -> onGoogleSignedIn(RegistrationRole.CLIENT, status.isVerified)
++                    "driver" -> onGoogleSignedIn(RegistrationRole.DRIVER, status.isVerified)
++                    else -> {
++                        AuthRepository.logout()
++                        googleError = "No se pudo leer tu perfil. Revisa tu conexión e intenta de nuevo."
++                    }
++                }
++            } finally {
++                isGoogleLoading = false
++            }
++        }
++    }
++
++    fun chooseRole(role: RegistrationRole) {
++        askRole = false
++        isGoogleLoading = true
++        scope.launch {
++            AuthRepository.createGoogleProfile(
++                if (role == RegistrationRole.CLIENT) "client" else "driver"
++            ).onSuccess {
++                isGoogleLoading = false
++                onGoogleSignedIn(role, false)
++            }.onFailure { e ->
++                // Sin perfil no hay cuenta usable: se cierra la sesión para poder reintentar.
++                AuthRepository.logout()
++                isGoogleLoading = false
++                googleError = AuthRepository.friendlyError(e)
++            }
++        }
++    }
++
++    if (askRole) {
++        AlertDialog(
++            onDismissRequest = {
++                askRole = false
++                AuthRepository.logout()
++            },
++            title = {
++                Text("¿Cómo vas a usar Ruta Confiable?", fontWeight = FontWeight.Bold, color = PrimaryLight)
++            },
++            text = {
++                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
++                    RoleOption(
++                        "Soy cliente", "Envío carga o reservo cupos en viajes.",
++                        onClick = { chooseRole(RegistrationRole.CLIENT) }
++                    )
++                    RoleOption(
++                        "Soy conductor", "Ofrezco fletes y cupos en mis rutas.",
++                        onClick = { chooseRole(RegistrationRole.DRIVER) }
++                    )
++                }
++            },
++            confirmButton = {},
++            dismissButton = {
++                TextButton(onClick = {
++                    askRole = false
++                    AuthRepository.logout()
++                }) { Text("Cancelar") }
++            }
++        )
++    }
++
+     selectedBenefit?.let {
+         BenefitInfoSheet(it, onDismiss = { selectedBenefit = null })
+     }
+@@ -121,7 +196,7 @@ fun WelcomeScreen(
+                     .background(PrimaryDark)
+             ) {
+                 Image(
+-                    painter = painterResource(id = R.drawable.logo),
++                    painter = painterResource(id = R.drawable.ic_launcher_background),
+                     contentDescription = null,
+                     modifier = Modifier.fillMaxSize(),
+                     contentScale = ContentScale.Crop
+@@ -164,6 +239,18 @@ fun WelcomeScreen(
+ 
+             PrimaryButton("Iniciar Sesión", onNavigateToLogin)
+             SecondaryOutlinedButton("Crear Cuenta Gratis", onNavigateToRegister, leadingIcon = Icons.Default.PersonAdd)
++            SecondaryOutlinedButton(
++                if (isGoogleLoading) "Conectando con Google..." else "Continuar con Google",
++                { signInWithGoogle() },
++                leadingIcon = Icons.Default.AccountCircle,
++                borderColor = OutlineVariant
++            )
++            googleError?.let {
++                Text(
++                    it, Modifier.fillMaxWidth(), fontSize = 12.sp,
++                    color = StatusBooked, textAlign = TextAlign.Center
++                )
++            }
+ 
+             Text(
+                 "Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.",
+@@ -174,6 +261,20 @@ fun WelcomeScreen(
+     }
+ }
+ 
++@Composable
++private fun RoleOption(title: String, subtitle: String, onClick: () -> Unit) {
++    Surface(
++        Modifier.fillMaxWidth().clickable { onClick() },
++        shape = RoundedCornerShape(10.dp),
++        color = SurfaceSoft
++    ) {
++        Column(Modifier.padding(14.dp)) {
++            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = PrimaryLight)
++            Text(subtitle, fontSize = 12.sp, color = OnSurfaceVariant)
++        }
++    }
++}
++
+ @OptIn(ExperimentalMaterial3Api::class)
+ @Composable
+ private fun BenefitInfoSheet(info: BenefitInfo, onDismiss: () -> Unit) {
+@@ -217,4 +318,4 @@ private fun BenefitInfoSheet(info: BenefitInfo, onDismiss: () -> Unit) {
+ @Composable
+ fun WelcomeScreenPreview() {
+     RutaConfiableTheme { WelcomeScreen() }
+-}
++}
+\ No newline at end of file

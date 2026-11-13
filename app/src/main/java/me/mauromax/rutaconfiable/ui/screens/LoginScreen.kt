@@ -2,28 +2,13 @@ package me.mauromax.rutaconfiable.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -31,32 +16,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import me.mauromax.rutaconfiable.ui.components.AppCard
-import me.mauromax.rutaconfiable.ui.components.BodyText
-import me.mauromax.rutaconfiable.ui.components.FieldLabel
-import me.mauromax.rutaconfiable.ui.components.PasswordTextField
-import me.mauromax.rutaconfiable.ui.components.PhoneWithCountrySelectorField
-import me.mauromax.rutaconfiable.ui.components.PrimaryButton
-import me.mauromax.rutaconfiable.ui.components.ScreenColumn
-import me.mauromax.rutaconfiable.ui.components.ScreenTitle
-import me.mauromax.rutaconfiable.ui.components.SegmentedSelector
-import me.mauromax.rutaconfiable.ui.components.StandardAppTopBar
-import me.mauromax.rutaconfiable.ui.components.TlsEncryptionBadge
-import me.mauromax.rutaconfiable.ui.components.data.AuthRepository
-import me.mauromax.rutaconfiable.ui.theme.Background
-import me.mauromax.rutaconfiable.ui.theme.ErrorContainer
-import me.mauromax.rutaconfiable.ui.theme.OnErrorContainer
-import me.mauromax.rutaconfiable.ui.theme.OnSurfaceVariant
-import me.mauromax.rutaconfiable.ui.theme.OutlineVariant
-import me.mauromax.rutaconfiable.ui.theme.PrimaryLight
-import me.mauromax.rutaconfiable.ui.theme.RutaConfiableTheme
-import me.mauromax.rutaconfiable.ui.theme.Secondary
-import me.mauromax.rutaconfiable.ui.theme.SurfaceSoft
+import me.mauromax.rutaconfiable.ui.components.*
+import me.mauromax.rutaconfiable.ui.data.AuthRepository
+import me.mauromax.rutaconfiable.ui.theme.*
 
 @Composable
 fun LoginScreen(
     onBackClick: () -> Unit = {},
-    onLoginSuccess: (role: RegistrationRole) -> Unit = {},
+    /** [verified] = false: la cuenta existe pero un administrador aún no la aprueba. */
+    onLoginSuccess: (role: RegistrationRole, verified: Boolean) -> Unit = { _, _ -> },
     onForgotPasswordClick: () -> Unit = {},
     onRegisterClick: (role: RegistrationRole) -> Unit = {}
 ) {
@@ -86,16 +54,16 @@ fun LoginScreen(
         scope.launch {
             AuthRepository.login(email, password)
                 .onSuccess {
-                    val actualRole = AuthRepository.getRole()
+                    val status = AuthRepository.getAccountStatus()
                     isLoading = false
-                    if (actualRole == selectedKey) {
-                        onLoginSuccess(selectedRole)
+                    if (status != null && status.role == selectedKey) {
+                        onLoginSuccess(selectedRole, status.isVerified)
                     } else {
                         AuthRepository.logout()
-                        errorMessage = if (actualRole == "client") {
-                            "Esta cuenta es de Cliente. Cambia el selector de rol."
-                        } else {
-                            "Esta cuenta es de Conductor. Cambia el selector de rol."
+                        errorMessage = when (status?.role) {
+                            "client" -> "Esta cuenta es de Cliente. Cambia el selector de rol."
+                            "driver" -> "Esta cuenta es de Conductor. Cambia el selector de rol."
+                            else -> "No se pudo leer tu perfil. Revisa tu conexión e intenta de nuevo."
                         }
                     }
                 }
