@@ -22,8 +22,10 @@ import me.mauromax.rutaconfiable.ui.components.data.ProfileData
 import me.mauromax.rutaconfiable.ui.components.data.ProfileRepository
 import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep1Screen
 import me.mauromax.rutaconfiable.ui.screens.ForgotPasswordStep2Screen
+import me.mauromax.rutaconfiable.ui.screens.HomeScreen
 import me.mauromax.rutaconfiable.ui.screens.LoadsScreen
 import me.mauromax.rutaconfiable.ui.screens.LoginScreen
+import me.mauromax.rutaconfiable.ui.screens.MyShipmentsScreen
 import me.mauromax.rutaconfiable.ui.screens.PaymentMethodsScreen
 import me.mauromax.rutaconfiable.ui.screens.ProfileScreen
 import me.mauromax.rutaconfiable.ui.screens.RegistrationRole
@@ -64,6 +66,14 @@ sealed class Screen(val route: String) {
     object Loads : Screen("loads/{role}") {
         fun createRoute(role: String = "driver") = "loads/$role"
     }
+
+    object Home : Screen("home/{role}") {
+        fun createRoute(role: String = "driver") = "home/$role"
+    }
+
+    object Shipments : Screen("shipments/{role}") {
+        fun createRoute(role: String = "driver") = "shipments/$role"
+    }
 }
 
 private fun roleParam(role: RegistrationRole) =
@@ -82,6 +92,11 @@ private fun NavHostController.goTab(route: String) {
         restoreState = true
     }
 }
+
+private fun NavHostController.goCargas(role: RegistrationRole) = goTab(
+    if (role == RegistrationRole.CLIENT) Screen.Shipments.createRoute("client")
+    else Screen.Loads.createRoute("driver")
+)
 
 @Composable
 fun AppNavGraph(
@@ -104,7 +119,9 @@ fun AppNavGraph(
     val startRoute = resolvedStart
     if (startRoute == null) {
         Box(
-            Modifier.fillMaxSize().background(Background),
+            Modifier
+                .fillMaxSize()
+                .background(Background),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = PrimaryLight)
@@ -316,16 +333,16 @@ fun AppNavGraph(
                         popUpTo(0)
                     }
                 },
+                onNavigateToHome = {
+                    navController.goTab(Screen.Home.createRoute(roleParam(role)))
+                },
                 onNavigateToTrips = {
                     navController.goTab(
                         Screen.Trips.createRoute(roleParam(role))
                     )
                 },
-                onNavigateToLoads = {
-                    navController.goTab(
-                        Screen.Loads.createRoute(roleParam(role))
-                    )
-                }
+                onNavigateToLoads = { navController.goCargas(role) }
+
             )
         }
 
@@ -346,10 +363,10 @@ fun AppNavGraph(
             TripScreen(
                 role = role,
                 onNavigateToLoads = {
-                    navController.goTab(
-                        Screen.Loads.createRoute(roleParam(role))
-                    )
+                    navController.goCargas(role)
                 },
+                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
+
                 onNavigateToProfile = {
                     navController.goTab(
                         Screen.Profile.createRoute(roleParam(role))
@@ -379,6 +396,7 @@ fun AppNavGraph(
                         Screen.Trips.createRoute(roleParam(role))
                     )
                 },
+                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
                 onNavigateToTrips = {
                     navController.goTab(
                         Screen.Trips.createRoute(roleParam(role))
@@ -387,6 +405,54 @@ fun AppNavGraph(
                 onNavigateToProfile = {
                     navController.goTab(
                         Screen.Profile.createRoute(roleParam(role))
+                    )
+                }
+            )
+        }
+        composable(
+            route = Screen.Home.route,
+            arguments = listOf(navArgument("role") {
+                type = NavType.StringType; defaultValue = "driver"
+            })
+        ) { backStackEntry ->
+            val role = parseRole(backStackEntry.arguments?.getString("role"))
+            val userName by produceState(initialValue = "Usuario") {
+                value = AuthRepository.getName() ?: "Usuario"
+            }
+            HomeScreen(
+                role = role,
+                userName = userName,
+                onNavigateToLoads = { navController.goCargas(role) },
+                onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
+                onNavigateToProfile = {
+                    navController.goTab(
+                        Screen.Profile.createRoute(
+                            roleParam(
+                                role
+                            )
+                        )
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.Shipments.route,
+            arguments = listOf(navArgument("role") {
+                type = NavType.StringType; defaultValue = "client"
+            })
+        ) { backStackEntry ->
+            val role = parseRole(backStackEntry.arguments?.getString("role"))
+            MyShipmentsScreen(
+                onNavigateToHome = { navController.goTab(Screen.Home.createRoute(roleParam(role))) },
+                onNavigateToTrips = { navController.goTab(Screen.Trips.createRoute(roleParam(role))) },
+                onNavigateToProfile = {
+                    navController.goTab(
+                        Screen.Profile.createRoute(
+                            roleParam(
+                                role
+                            )
+                        )
                     )
                 }
             )

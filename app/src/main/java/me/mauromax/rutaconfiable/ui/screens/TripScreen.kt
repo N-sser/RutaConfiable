@@ -162,6 +162,7 @@ data class AvailableTrip(
 fun TripScreen(
     role: RegistrationRole = RegistrationRole.DRIVER,
     trips: List<AvailableTrip> = TripRepository.trips,
+    onNavigateToHome: () -> Unit = {},
     onNavigateToLoads: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {}
 ) {
@@ -264,6 +265,7 @@ fun TripScreen(
         bottomBar = {
             AppBottomBar(selectedIndex = 2) {
                 when (it) {
+                    0 -> onNavigateToHome()
                     1 -> onNavigateToLoads()
                     3 -> onNavigateToProfile()
                 }

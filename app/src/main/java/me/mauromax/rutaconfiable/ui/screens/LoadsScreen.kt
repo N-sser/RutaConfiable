@@ -83,6 +83,7 @@ fun LoadsScreen(
     role: RegistrationRole = RegistrationRole.DRIVER,
     driverName: String = "Conductor",
     onPublished: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
     onNavigateToTrips: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {}
 ) {
@@ -170,6 +171,7 @@ fun LoadsScreen(
         bottomBar = {
             AppBottomBar(selectedIndex = 1) {
                 when (it) {
+                    0 -> onNavigateToHome()
                     2 -> onNavigateToTrips()
                     3 -> onNavigateToProfile()
                 }

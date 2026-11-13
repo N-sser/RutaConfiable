@@ -89,6 +89,7 @@ fun ProfileScreen(
     nextTrip: NextTrip? = null,
     trips: List<Trip> = emptyList(),
     onLogout: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
     onNavigateToTrips: () -> Unit = {},
     onNavigateToLoads: () -> Unit = {}
 ) {
@@ -99,7 +100,8 @@ fun ProfileScreen(
         bottomBar = {
             AppBottomBar(selectedIndex = 3) {
                 when (it) {
-                    1 -> if (isDriver) onNavigateToLoads()
+                    0 -> onNavigateToHome()
+                    1 -> onNavigateToLoads()
                     2 -> onNavigateToTrips()
                 }
             }
